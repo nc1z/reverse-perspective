@@ -1,568 +1,462 @@
-/* ── reverse-perspective — frontend ──────────────────────────────────────── */
+/* ── reverse-perspective · book UI ───────────────────────────────────────── */
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => [...document.querySelectorAll(sel)];
-
-function el(tag, cls, html = '') {
+const $ = id => document.getElementById(id);
+const el = (tag, cls, html = '') => {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
   if (html) e.innerHTML = html;
   return e;
-}
+};
+const fmt = n => n >= 1_000_000 ? (n/1e6).toFixed(1)+'M' : n >= 1_000 ? (n/1e3).toFixed(1)+'k' : String(n ?? 0);
 
-function fmt(n) {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k';
-  return String(n);
-}
-
-function fmtDate(iso) {
-  if (!iso) return '';
-  return new Date(iso).getFullYear();
-}
-
-// ── Marked config ──────────────────────────────────────────────────────────
 marked.setOptions({ gfm: true, breaks: true });
 
-// ── File icon map ──────────────────────────────────────────────────────────
-const FILE_ICONS = {
-  ts: '🔷', tsx: '⚛️', js: '🟨', jsx: '⚛️',
-  py: '🐍', go: '🐹', rs: '🦀', java: '☕', rb: '💎',
-  cpp: '⚙️', c: '⚙️', swift: '🍎', kt: '🤖',
-  json: '📋', toml: '📋', yaml: '📋', yml: '📋',
-  md: '📝', txt: '📄', sh: '⚡', css: '🎨', html: '🌐',
-  sql: '🗄️', env: '🔐', gitignore: '🙈',
-};
+// ── State ──────────────────────────────────────────────────────────────────
+let data       = null;
+let spread     = 0;
+let animating  = false;
 
-function fileIcon(name) {
-  const ext = name.split('.').pop()?.toLowerCase() || '';
-  return FILE_ICONS[ext] || '📄';
+// ── Spread definitions ─────────────────────────────────────────────────────
+// Each entry: [leftRenderer, rightRenderer]
+// Renderers receive (container, data)
+const SPREADS = [
+  [renderEndpaper,     renderCover],
+  [renderTOC,          renderMentalModel],
+  [renderRepoTree,     renderLayers],
+  [renderDependencies, renderScaffolding],
+  [renderFlow,         renderCommits],
+  [renderSummary,      renderBackCover],
+];
+
+const SPREAD_LABELS = [
+  '',
+  'I · Mental Model',
+  'II · Repository',
+  'III · Dependencies',
+  'IV · Flow & History',
+  'V · Cheat Sheet',
+];
+
+// ── Page renderers ─────────────────────────────────────────────────────────
+
+function renderEndpaper(container) {
+  container.innerHTML = `
+    <div class="endpaper" style="margin:-44px -40px -36px; height:calc(100% + 80px)">
+      <div class="endpaper-pattern">
+        <div class="endpaper-ornament">⊕</div>
+      </div>
+    </div>`;
 }
 
-// ── Build interactive folder tree ──────────────────────────────────────────
-function buildTree(paths) {
-  const root = {};
-  for (const path of paths) {
-    const parts = path.split('/');
-    let node = root;
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      if (!node[part]) node[part] = (i < parts.length - 1) ? {} : null;
-      if (node[part] !== null && typeof node[part] === 'object') node = node[part];
-    }
-  }
-  return root;
+function renderCover(container, d) {
+  const repo = d?.repo ?? {};
+  container.innerHTML = `
+    <div class="cover-page" style="margin:-44px -40px -36px; height:calc(100% + 80px)">
+      <div class="cover-border"></div>
+      <div class="cover-corner tl">✦</div>
+      <div class="cover-corner tr">✦</div>
+      <div class="cover-corner bl">✦</div>
+      <div class="cover-corner br">✦</div>
+      <div class="cover-eyebrow">reverse-perspective</div>
+      <div class="cover-title">${esc(repo.name || repo.fullName || '…')}</div>
+      <div class="cover-divider"></div>
+      <div class="cover-desc">${esc(repo.description || 'A developer\u2019s deep dive')}</div>
+      <div class="cover-stats">
+        <div class="cover-stat">
+          <div class="cover-stat-value">${fmt(repo.stars)}</div>
+          <div class="cover-stat-label">Stars</div>
+        </div>
+        <div class="cover-stat">
+          <div class="cover-stat-value">${fmt(repo.forks)}</div>
+          <div class="cover-stat-label">Forks</div>
+        </div>
+        <div class="cover-stat">
+          <div class="cover-stat-value">${fmt((d?.rawTree ?? []).length)}</div>
+          <div class="cover-stat-label">Files</div>
+        </div>
+      </div>
+      <div class="cover-footer">${esc(repo.language || '')}${repo.language && repo.license ? ' · ' : ''}${esc(repo.license || '')}</div>
+    </div>`;
 }
 
-function renderTreeNode(name, children, depth = 0) {
-  const isDir = children !== null && typeof children === 'object';
-  const wrapper = el('div', 'tree-node-wrapper');
-
-  const node = el('div', `tree-node${isDir ? ' is-dir' : ''}`);
-  node.style.setProperty('--depth', depth);
-
-  const icon = el('span', 'icon');
-  icon.textContent = isDir ? '📁' : fileIcon(name);
-
-  const label = el('span', 'name');
-  label.textContent = name + (isDir ? '/' : '');
-
-  node.appendChild(icon);
-  node.appendChild(label);
-
-  if (isDir) {
-    const chevron = el('span', 'chevron');
-    chevron.textContent = '▶';
-    node.appendChild(chevron);
-
-    const childrenEl = el('div', 'tree-children');
-    childrenEl.style.maxHeight = '0';
-    childrenEl.style.overflow = 'hidden';
-
-    const entries = Object.entries(children).sort(([aKey, aVal], [bKey, bVal]) => {
-      // Dirs first, then files
-      const aIsDir = aVal !== null && typeof aVal === 'object';
-      const bIsDir = bVal !== null && typeof bVal === 'object';
-      if (aIsDir !== bIsDir) return aIsDir ? -1 : 1;
-      return aKey.localeCompare(bKey);
-    });
-
-    for (const [childName, childChildren] of entries) {
-      childrenEl.appendChild(renderTreeNode(childName, childChildren, depth + 1));
-    }
-
-    let isOpen = depth === 0; // root level starts open
-    if (isOpen) {
-      node.classList.add('open');
-      childrenEl.style.maxHeight = 'none';
-    }
-
-    node.addEventListener('click', () => {
-      isOpen = !isOpen;
-      node.classList.toggle('open', isOpen);
-      if (isOpen) {
-        childrenEl.style.maxHeight = childrenEl.scrollHeight + 'px';
-        anime({
-          targets: childrenEl.querySelectorAll(':scope > .tree-node-wrapper > .tree-node'),
-          opacity: [0, 1],
-          translateX: [-8, 0],
-          delay: anime.stagger(30),
-          duration: 200,
-          easing: 'easeOutQuad',
-        });
-      } else {
-        childrenEl.style.maxHeight = '0';
-      }
-    });
-
-    wrapper.appendChild(node);
-    wrapper.appendChild(childrenEl);
-  } else {
-    wrapper.appendChild(node);
-  }
-
-  return wrapper;
-}
-
-// ── Count-up animation ─────────────────────────────────────────────────────
-function countUp(el, target, duration = 1200) {
-  const formatted = fmt(target);
-  if (isNaN(target) || target === 0) {
-    el.textContent = formatted;
-    return;
-  }
-
-  const obj = { v: 0 };
-  anime({
-    targets: obj,
-    v: target,
-    duration,
-    easing: 'easeOutExpo',
-    round: 1,
-    update: () => { el.textContent = fmt(Math.round(obj.v)); },
-    complete: () => { el.textContent = formatted; },
-  });
-}
-
-// ── IntersectionObserver for scroll reveals ────────────────────────────────
-const revealQueue = new Map(); // el → callback
-
-const observer = new IntersectionObserver(
-  (entries) => {
-    for (const entry of entries) {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('revealed');
-        const cb = revealQueue.get(entry.target);
-        if (cb) {
-          setTimeout(cb, 100);
-          revealQueue.delete(entry.target);
-        }
-        observer.unobserve(entry.target);
-      }
-    }
-  },
-  { threshold: 0.1, rootMargin: '0px 0px -60px 0px' }
-);
-
-function onReveal(el, cb) {
-  revealQueue.set(el, cb);
-  observer.observe(el);
-}
-
-// ── Parallax ───────────────────────────────────────────────────────────────
-function initParallax() {
-  const heroGlow = $('.hero-glow');
-  if (!heroGlow) return;
-  window.addEventListener('scroll', () => {
-    const y = window.scrollY;
-    heroGlow.style.transform = `translateY(${y * 0.3}px)`;
-    const grid = $('.hero-bg-grid');
-    if (grid) grid.style.transform = `translateY(${y * 0.15}px)`;
-  }, { passive: true });
-}
-
-// ── Drag-to-scroll for layer cards ────────────────────────────────────────
-function initDragScroll(el) {
-  let isDown = false, startX, scrollLeft;
-  el.addEventListener('mousedown', (e) => {
-    isDown = true;
-    startX = e.pageX - el.offsetLeft;
-    scrollLeft = el.scrollLeft;
-  });
-  window.addEventListener('mouseup', () => { isDown = false; });
-  el.addEventListener('mousemove', (e) => {
-    if (!isDown) return;
-    e.preventDefault();
-    const x = e.pageX - el.offsetLeft;
-    el.scrollLeft = scrollLeft - (x - startX);
-  });
-}
-
-// ── Render sections ────────────────────────────────────────────────────────
-
-function renderHero(data) {
-  const { repo } = data;
-
-  $('#hero-title').textContent = repo.name || repo.fullName;
-  $('#hero-desc').textContent = repo.description || 'No description provided.';
-  $('#footer-link').href = repo.url;
-  $('#footer-link').textContent = `View ${repo.fullName} on GitHub →`;
-  document.title = `${repo.name} — reverse-perspective`;
-
-  const meta = $('#hero-meta');
-  if (repo.language) {
-    const t = el('span', 'hero-tag lang');
-    t.textContent = repo.language;
-    meta.appendChild(t);
-  }
-  if (repo.license) {
-    const t = el('span', 'hero-tag');
-    t.textContent = repo.license;
-    meta.appendChild(t);
-  }
-  for (const topic of (repo.topics || []).slice(0, 5)) {
-    const t = el('span', 'hero-tag');
-    t.textContent = topic;
-    meta.appendChild(t);
-  }
-  const yr = el('span', 'hero-tag');
-  yr.textContent = `Since ${fmtDate(repo.createdAt)}`;
-  meta.appendChild(yr);
-
-  const stats = [
-    { value: repo.stars,      label: 'stars' },
-    { value: repo.forks,      label: 'forks' },
-    { value: repo.openIssues, label: 'issues' },
-    { value: (data.rawTree || []).length, label: 'files' },
+function renderTOC(container) {
+  const chapters = [
+    'Mental Model',
+    'Repository Structure',
+    'Dependencies',
+    'Dev Scaffolding',
+    'End-to-End Flow',
+    'Commit History',
+    'Cheat Sheet',
   ];
+  const pages = [3, 5, 7, 8, 9, 11, 13];
 
-  const statsEl = $('#hero-stats');
-  for (const s of stats) {
-    const card = el('div', 'stat-card');
-    const val = el('div', 'stat-value');
-    val.textContent = '0';
-    const lbl = el('div', 'stat-label');
-    lbl.textContent = s.label;
-    card.appendChild(val);
-    card.appendChild(lbl);
-    statsEl.appendChild(card);
-    card._target = s.value;
-    card._valEl = val;
-  }
-
-  const link = $('#hero-link');
-  link.href = repo.url;
-
-  // Animate hero in
-  anime.timeline({ easing: 'easeOutExpo' })
-    .add({ targets: '.hero-eyebrow', opacity: [0, 1], translateY: [10, 0], duration: 600 })
-    .add({ targets: '#hero-title', opacity: [0, 1], translateY: [20, 0], duration: 700 }, '-=400')
-    .add({ targets: '#hero-desc', opacity: [0, 1], translateY: [15, 0], duration: 600 }, '-=500')
-    .add({ targets: '#hero-meta', opacity: [0, 1], translateY: [10, 0], duration: 500 }, '-=400')
-    .add({
-      targets: '#hero-stats',
-      opacity: [0, 1],
-      translateY: [15, 0],
-      duration: 600,
-      complete: () => {
-        // Start count-up once stats are visible
-        for (const card of $$('.stat-card')) {
-          countUp(card._valEl, card._target);
-        }
-      },
-    }, '-=300')
-    .add({ targets: '#hero-link', opacity: [0, 1], translateY: [10, 0], duration: 400 }, '-=200');
+  let html = pageHeader('Contents', null, 'Table of Contents');
+  html += '<div style="margin-top:8px">';
+  chapters.forEach((name, i) => {
+    html += `<div class="toc-item">
+      <span class="toc-num">${String(i+1).padStart(2,'0')}</span>
+      <span class="toc-name">${name}</span>
+      <span class="toc-dots"></span>
+      <span class="toc-page">${pages[i]}</span>
+    </div>`;
+  });
+  html += '</div>';
+  html += '<div class="page-number left">2</div>';
+  container.innerHTML = html;
 }
 
-function renderMentalModel(data) {
-  const list = $('#mental-model-list');
-  const items = data.mentalModel || [];
-
+function renderMentalModel(container, d) {
+  const items = d?.mentalModel ?? [];
+  let html = pageHeader('I', 'Mental Model', 'The core questions this codebase answers');
   if (!items.length) {
-    list.innerHTML = '<p style="color:var(--text-3)">No mental model data found.</p>';
-    return;
-  }
-
-  items.forEach((text, i) => {
-    const card = el('div', 'mm-card');
-    const num = el('div', 'mm-number');
-    num.textContent = String(i + 1).padStart(2, '0');
-    const txt = el('div', 'mm-text');
-    txt.textContent = text;
-    card.appendChild(num);
-    card.appendChild(txt);
-    list.appendChild(card);
-  });
-
-  onReveal($('#mental-model'), () => {
-    anime({
-      targets: '.mm-card',
-      opacity: [0, 1],
-      translateY: [30, 0],
-      delay: anime.stagger(120),
-      duration: 700,
-      easing: 'easeOutExpo',
+    html += '<p class="ch-subtitle">No data parsed for this section.</p>';
+  } else {
+    items.forEach((text, i) => {
+      html += `<div class="mm-item">
+        <div class="mm-num">${String(i+1).padStart(2,'0')}</div>
+        <div class="mm-text">${esc(text)}</div>
+      </div>`;
     });
-  });
+  }
+  html += '<div class="page-number right">3</div>';
+  container.innerHTML = html;
 }
 
-function renderRepoTree(data) {
-  const treeEl = $('#tree-interactive');
-  const annEl = $('#tree-annotations');
+function renderRepoTree(container, d) {
+  const annotations = d?.repoTree ?? [];
+  let html = pageHeader('II', 'Repo Tree', 'Every top-level item and why it exists');
 
-  // Interactive tree from raw GitHub file list
-  const rawTree = data.rawTree || [];
-  if (rawTree.length) {
-    const treeData = buildTree(rawTree.slice(0, 400));
-    const entries = Object.entries(treeData).sort(([aK, aV], [bK, bV]) => {
-      const aIsDir = aV !== null && typeof aV === 'object';
-      const bIsDir = bV !== null && typeof bV === 'object';
-      if (aIsDir !== bIsDir) return aIsDir ? -1 : 1;
-      return aK.localeCompare(bK);
-    });
-    for (const [name, children] of entries) {
-      treeEl.appendChild(renderTreeNode(name, children, 0));
-    }
-  } else {
-    treeEl.innerHTML = '<span style="color:var(--text-3);font-size:13px">Tree not available</span>';
-  }
-
-  // Annotation list from parser
-  const annotations = data.repoTree || [];
   if (annotations.length) {
-    for (const item of annotations) {
-      const row = el('div', 'annotation-item');
-      const path = el('div', 'ann-path');
-      path.textContent = item.path;
-      const text = el('div', 'ann-text');
-      text.textContent = item.annotation;
-      row.appendChild(path);
-      row.appendChild(text);
-      annEl.appendChild(row);
-    }
-
-    onReveal($('#repo-tree'), () => {
-      anime({
-        targets: '.annotation-item',
-        opacity: [0, 1],
-        translateX: [20, 0],
-        delay: anime.stagger(60),
-        duration: 500,
-        easing: 'easeOutQuad',
-      });
+    html += '<div class="tree-annotations">';
+    annotations.slice(0, 18).forEach(item => {
+      html += `<div class="ann-item">
+        <div class="ann-path">${esc(item.path)}</div>
+        <div class="ann-text">${esc(item.annotation)}</div>
+      </div>`;
     });
+    html += '</div>';
+  } else if (d?.rawTree?.length) {
+    // Fallback: render plain tree
+    html += '<div class="file-tree">';
+    const preview = buildTreePreview(d.rawTree.slice(0, 60));
+    html += preview;
+    html += '</div>';
   } else {
-    annEl.innerHTML = '<span style="color:var(--text-3);font-size:14px">Annotations not parsed — see raw markdown.</span>';
+    html += '<p class="ch-subtitle">No tree data available.</p>';
   }
+
+  html += '<div class="page-number left">4</div>';
+  container.innerHTML = html;
+  // Init interactive tree if rendered
+  initTreeNodes(container);
 }
 
-function renderLayers(data) {
-  const list = $('#layers-list');
-  const layers = data.layers || [];
+function buildTreePreview(paths) {
+  // Simple indent-based flat list
+  return paths.map(p => {
+    const depth = p.split('/').length - 1;
+    const name = p.split('/').pop();
+    const pad = '  '.repeat(depth);
+    const isDir = !name.includes('.');
+    return `<div style="padding-left:${depth * 12}px;color:${isDir ? 'var(--ink)' : 'var(--ink-2)'}">${pad}${name}</div>`;
+  }).join('');
+}
+
+function initTreeNodes(container) {
+  container.querySelectorAll('.tree-node.is-dir').forEach(node => {
+    const wrapper = node.closest('.tree-node-wrapper');
+    if (!wrapper) return;
+    const children = wrapper.querySelector('.tree-children');
+    if (!children) return;
+    node.addEventListener('click', () => {
+      const isOpen = node.classList.toggle('open');
+      children.style.maxHeight = isOpen ? children.scrollHeight + 'px' : '0';
+    });
+  });
+}
+
+function renderLayers(container, d) {
+  const layers = d?.layers ?? [];
+  let html = pageHeader('II', 'Layer Deep Dives', 'How each subsystem was designed');
 
   if (!layers.length) {
-    list.innerHTML = '<p style="padding:0 40px;color:var(--text-3)">No layers parsed.</p>';
-    return;
-  }
-
-  for (const layer of layers) {
-    const card = el('div', 'layer-card');
-    const name = el('div', 'layer-name');
-    name.textContent = layer.name;
-    const content = el('div', 'layer-content prose');
-    content.innerHTML = marked.parse(layer.content || '');
-    card.appendChild(name);
-    card.appendChild(content);
-    list.appendChild(card);
-  }
-
-  // Apply highlight.js to code blocks
-  list.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
-
-  onReveal($('#layers'), () => {
-    anime({
-      targets: '.layer-card',
-      opacity: [0, 1],
-      translateX: [40, 0],
-      delay: anime.stagger(100),
-      duration: 700,
-      easing: 'easeOutExpo',
+    html += '<p class="ch-subtitle">No layers parsed.</p>';
+  } else {
+    layers.forEach(layer => {
+      html += `<div class="layer-item">
+        <div class="layer-name">${esc(layer.name)}</div>
+        <div class="layer-content prose">${marked.parse(layer.content || '')}</div>
+      </div>`;
     });
-  });
-
-  initDragScroll(list);
-}
-
-function renderProse(sectionId, contentId, markdown) {
-  const el2 = $(`#${contentId}`);
-  if (!markdown || !markdown.trim()) {
-    el2.innerHTML = '<p style="color:var(--text-3)">No data for this section.</p>';
-    return;
-  }
-  el2.innerHTML = marked.parse(markdown);
-  el2.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
-}
-
-function renderE2EFlow(data) {
-  const container = $('#e2e-content');
-  const text = data.e2eFlow || '';
-  if (!text.trim()) {
-    container.textContent = 'No flow diagram available.';
-    return;
   }
 
-  // Render line by line for animation
-  const lines = text.split('\n');
-  for (const line of lines) {
-    const span = el('span', 'line');
-    span.textContent = line;
-    container.appendChild(span);
-  }
-
-  onReveal($('#e2e-flow'), () => {
-    anime({
-      targets: '#e2e-content .line',
-      opacity: [0, 1],
-      translateX: [-6, 0],
-      delay: anime.stagger(18),
-      duration: 300,
-      easing: 'easeOutQuad',
-    });
-  });
+  html += '<div class="page-number right">5</div>';
+  container.innerHTML = html;
+  container.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
 }
 
-function renderCommitStory(data) {
-  const timeline = $('#timeline');
-  const commits = data.commitStory || [];
+function renderDependencies(container, d) {
+  let html = pageHeader('III', 'Dependencies', 'Every dependency mapped to the layer it serves');
+  if (d?.dependencies) {
+    html += `<div class="prose">${marked.parse(d.dependencies)}</div>`;
+  } else {
+    html += '<p class="ch-subtitle">No dependency data available.</p>';
+  }
+  html += '<div class="page-number left">6</div>';
+  container.innerHTML = html;
+  container.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
+}
+
+function renderScaffolding(container, d) {
+  let html = pageHeader('III', 'Dev Scaffolding', 'Linting, CI, tests — and why each exists');
+  if (d?.devScaffolding) {
+    html += `<div class="prose">${marked.parse(d.devScaffolding)}</div>`;
+  } else {
+    html += '<p class="ch-subtitle">No scaffolding data available.</p>';
+  }
+  html += '<div class="page-number right">7</div>';
+  container.innerHTML = html;
+  container.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
+}
+
+function renderFlow(container, d) {
+  let html = pageHeader('IV', 'End-to-End Flow', 'One command traced through every layer');
+  if (d?.e2eFlow) {
+    html += `<div class="flow-diagram">${esc(d.e2eFlow)}</div>`;
+  } else {
+    html += '<p class="ch-subtitle">No flow diagram available.</p>';
+  }
+  html += '<div class="page-number left">8</div>';
+  container.innerHTML = html;
+}
+
+function renderCommits(container, d) {
+  const commits = d?.commitStory ?? [];
+  let html = pageHeader('IV', 'Built From Scratch', 'The commits that would reconstruct this today');
 
   if (!commits.length) {
-    timeline.innerHTML = '<p style="color:var(--text-3)">No commit story parsed.</p>';
-    return;
+    html += '<p class="ch-subtitle">No commit story parsed.</p>';
+  } else {
+    html += '<div class="commits">';
+    commits.forEach(c => {
+      html += `<div class="commit">
+        <div class="commit-n">commit ${c.n}</div>
+        <div class="commit-msg">${esc(c.message)}</div>
+        ${c.description ? `<div class="commit-desc">${esc(c.description)}</div>` : ''}
+      </div>`;
+    });
+    html += '</div>';
   }
 
-  for (const commit of commits) {
-    const item = el('div', 'commit-item');
-    const dot = el('div', 'commit-dot');
-    const num = el('div', 'commit-n');
-    num.textContent = `commit ${commit.n}`;
-    const msg = el('div', 'commit-message');
-    msg.textContent = commit.message;
-    const desc = el('div', 'commit-desc');
-    desc.textContent = commit.description;
-    item.appendChild(dot);
-    item.appendChild(num);
-    item.appendChild(msg);
-    if (commit.description) item.appendChild(desc);
-    timeline.appendChild(item);
-  }
-
-  onReveal($('#commit-story'), () => {
-    anime({
-      targets: '.commit-item',
-      opacity: [0, 1],
-      translateX: [-20, 0],
-      delay: anime.stagger(100),
-      duration: 600,
-      easing: 'easeOutExpo',
-    });
-    // Animate dots pulsing in sequence
-    anime({
-      targets: '.commit-dot',
-      borderColor: [
-        { value: 'rgba(124,58,237,0.2)' },
-        { value: '#7c3aed' },
-      ],
-      delay: anime.stagger(100),
-      duration: 400,
-      easing: 'easeOutQuad',
-    });
-  });
+  html += '<div class="page-number right">9</div>';
+  container.innerHTML = html;
 }
 
-function renderSummaries(data) {
-  const grid = $('#summary-grid');
-  const summaries = data.summaries || [];
+function renderSummary(container, d) {
+  const summaries = d?.summaries ?? [];
+  let html = pageHeader('V', 'Cheat Sheet', 'One sentence per layer — the whole codebase in a glance');
 
   if (!summaries.length) {
-    grid.innerHTML = '<p style="color:var(--text-3)">No summaries parsed.</p>';
-    return;
-  }
-
-  for (const s of summaries) {
-    const card = el('div', 'summary-card');
-    const layer = el('div', 'summary-layer');
-    layer.textContent = s.layer;
-    const text = el('div', 'summary-text');
-    text.textContent = s.oneLiner;
-    card.appendChild(layer);
-    card.appendChild(text);
-    grid.appendChild(card);
-  }
-
-  onReveal($('#summaries'), () => {
-    anime({
-      targets: '.summary-card',
-      opacity: [0, 1],
-      translateY: [20, 0],
-      delay: anime.stagger(60),
-      duration: 600,
-      easing: 'easeOutExpo',
+    html += '<p class="ch-subtitle">No summaries parsed.</p>';
+  } else {
+    summaries.forEach(s => {
+      html += `<div class="summary-item">
+        <div class="summary-layer">${esc(s.layer)}</div>
+        <div class="summary-text">${esc(s.oneLiner)}</div>
+      </div>`;
     });
-  });
+  }
+
+  html += '<div class="page-number left">10</div>';
+  container.innerHTML = html;
 }
 
-// ── Dismiss loading ────────────────────────────────────────────────────────
-function showApp() {
-  anime({
-    targets: '#loading',
-    opacity: [1, 0],
-    duration: 500,
-    easing: 'easeInQuad',
-    complete: () => {
-      $('#loading').style.display = 'none';
-      $('#app').style.display = 'block';
-      // Trigger initial hero animation
-      requestAnimationFrame(() => renderHero(window.__data));
-    },
-  });
+function renderBackCover(container, d) {
+  const repo = d?.repo ?? {};
+  container.innerHTML = `
+    <div class="back-cover" style="margin:-44px -40px -36px; height:calc(100% + 80px)">
+      <div class="back-cover-border"></div>
+      <div class="back-cover-ornament">✦</div>
+      <div class="back-cover-text">
+        ${esc(repo.fullName || '')}
+      </div>
+    </div>`;
 }
 
-// ── Main ───────────────────────────────────────────────────────────────────
-async function main() {
-  let data;
+// ── Page header helper ─────────────────────────────────────────────────────
+function pageHeader(eyebrow, title, subtitle) {
+  return `
+    ${eyebrow ? `<div class="ch-eyebrow">Chapter ${eyebrow}</div>` : ''}
+    ${title   ? `<div class="ch-title">${esc(title)}</div>` : ''}
+    <div class="ch-rule"></div>
+    ${subtitle ? `<div class="ch-subtitle">${esc(subtitle)}</div>` : ''}
+  `;
+}
+
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ── Render a spread into DOM ───────────────────────────────────────────────
+function renderSpread(index, leftEl, rightEl) {
+  const [leftFn, rightFn] = SPREADS[index];
+  leftFn(leftEl, data);
+  rightFn(rightEl, data);
+}
+
+// ── Page flip animation ────────────────────────────────────────────────────
+async function flipForward() {
+  if (animating || spread >= SPREADS.length - 1) return;
+  animating = true;
+
+  const next = spread + 1;
+  const rightPage  = $('right-page');
+  const frontContent = $('front-content');
+  const backContent  = $('back-content');
+  const leftContent  = $('left-content');
+
+  // Front = current right, Back = next left
+  renderSpread(spread, { innerHTML: '' }, frontContent);
+  SPREADS[spread][1](frontContent, data);
+  SPREADS[next][0](backContent, data);
+
+  await anime({
+    targets: rightPage,
+    rotateY: [0, -180],
+    duration: 700,
+    easing: 'cubicBezier(0.645, 0.045, 0.355, 1.000)',
+  }).finished;
+
+  spread = next;
+
+  // Settle: update left, reset flip, show new right front
+  SPREADS[spread][0](leftContent, data);
+  SPREADS[spread][1](frontContent, data);
+  rightPage.style.transform = 'rotateY(0deg)';
+
+  updateUI();
+  animating = false;
+}
+
+async function flipBackward() {
+  if (animating || spread <= 0) return;
+  animating = true;
+
+  const prev = spread - 1;
+  const rightPage    = $('right-page');
+  const frontContent = $('front-content');
+  const backContent  = $('back-content');
+  const leftContent  = $('left-content');
+
+  // Front = prev right, Back = current left (what's visible now)
+  SPREADS[prev][1](frontContent, data);
+  SPREADS[spread][0](backContent, data);
+
+  // Start already-flipped (back = current left is showing)
+  rightPage.style.transform = 'rotateY(-180deg)';
+
+  // Small tick so browser registers the starting transform before animating
+  await new Promise(r => requestAnimationFrame(r));
+
+  await anime({
+    targets: rightPage,
+    rotateY: [-180, 0],
+    duration: 700,
+    easing: 'cubicBezier(0.645, 0.045, 0.355, 1.000)',
+  }).finished;
+
+  spread = prev;
+
+  SPREADS[spread][0](leftContent, data);
+  rightPage.style.transform = 'rotateY(0deg)';
+
+  updateUI();
+  animating = false;
+}
+
+// ── UI state ──────────────────────────────────────────────────────────────
+function updateUI() {
+  $('nav-prev').disabled = spread === 0;
+  $('nav-next').disabled = spread === SPREADS.length - 1;
+
+  const label = SPREAD_LABELS[spread] || '';
+  $('page-indicator').textContent = label ? `— ${label} —` : '';
+
+  // Spine title
+  const repo = data?.repo?.name || data?.repo?.fullName || '';
+  $('spine-title').textContent = repo ? `${repo}  ·  reverse-perspective` : 'reverse-perspective';
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+async function init() {
   try {
     const res = await fetch('/api/analysis');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     data = await res.json();
   } catch (err) {
-    $('#loading').innerHTML = `
+    $('loading').innerHTML = `
       <div class="loading-inner">
-        <div style="font-size:40px;margin-bottom:16px">✗</div>
-        <div style="font-family:var(--font-mono);color:#f43f5e;font-size:14px">
-          Failed to load analysis: ${err.message}
+        <div style="font-size:32px;color:#c9a84c;margin-bottom:16px">✗</div>
+        <div style="font-family:'Lora',serif;color:#f7f2e8;font-size:14px;font-style:italic">
+          Could not load analysis<br><br>
+          <span style="font-size:12px;color:#6a7a8a">${err.message}</span>
         </div>
       </div>`;
     return;
   }
 
-  window.__data = data;
+  // Render initial spread (cover)
+  renderSpread(0, $('left-content'), $('front-content'));
+  updateUI();
 
-  // Render all sections before showing app
-  renderMentalModel(data);
-  renderRepoTree(data);
-  renderLayers(data);
-  renderProse('dependencies', 'deps-content', data.dependencies);
-  renderProse('dev-scaffolding', 'scaffold-content', data.devScaffolding);
-  renderE2EFlow(data);
-  renderCommitStory(data);
-  renderSummaries(data);
+  // Wire navigation
+  $('nav-next').addEventListener('click', flipForward);
+  $('nav-prev').addEventListener('click', flipBackward);
 
-  // Observe all reveal sections
-  $$('.reveal-section').forEach(s => observer.observe(s));
+  // Keyboard navigation
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') flipForward();
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   flipBackward();
+  });
 
-  initParallax();
-  showApp();
+  // Click on page edges to flip
+  $('right-page').addEventListener('click', e => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (e.clientX > rect.left + rect.width * 0.7) flipForward();
+  });
+  $('left-page').addEventListener('click', e => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (e.clientX < rect.left + rect.width * 0.3) flipBackward();
+  });
+
+  // Add keyboard hint
+  const hint = el('div', 'key-hint');
+  hint.textContent = '← → arrow keys to turn pages';
+  document.body.appendChild(hint);
+
+  // Dismiss loading
+  anime({
+    targets: '#loading',
+    opacity: [1, 0],
+    duration: 600,
+    easing: 'easeInQuad',
+    complete: () => {
+      $('loading').style.display = 'none';
+      $('app').style.display = 'flex';
+      anime({
+        targets: '.book',
+        opacity: [0, 1],
+        scale: [0.96, 1],
+        duration: 700,
+        easing: 'easeOutExpo',
+      });
+    },
+  });
 }
 
-main();
+init();

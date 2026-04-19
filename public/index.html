@@ -5,150 +5,69 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>reverse-perspective</title>
 
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <!-- highlight.js (code syntax) -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark-dimmed.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-
-  <!-- marked (markdown rendering) -->
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
-
-  <!-- anime.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
 
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-  <!-- ── Loading screen ────────────────────────────────────────── -->
+  <!-- Loading -->
   <div id="loading">
     <div class="loading-inner">
-      <div class="loading-logo">⌥</div>
-      <div class="loading-text">reverse-perspective</div>
-      <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+      <div class="loading-ornament">✦</div>
+      <div class="loading-title">reverse-perspective</div>
+      <div class="loading-sub">Opening the book…</div>
     </div>
   </div>
 
-  <!-- ── Main content ──────────────────────────────────────────── -->
-  <main id="app" style="display:none">
+  <!-- Book -->
+  <div id="app" style="display:none">
 
-    <!-- ── HERO ──────────────────────────────────────────────────── -->
-    <section id="hero" class="section section-hero">
-      <div class="hero-bg-grid"></div>
-      <div class="hero-glow"></div>
-      <div class="container">
-        <div class="hero-eyebrow">reverse-perspective</div>
-        <h1 class="hero-title" id="hero-title"></h1>
-        <p class="hero-desc" id="hero-desc"></p>
-        <div class="hero-meta" id="hero-meta"></div>
-        <div class="hero-stats" id="hero-stats"></div>
-        <a class="hero-link" id="hero-link" target="_blank" rel="noopener">
-          View on GitHub →
-        </a>
-      </div>
-      <div class="scroll-hint">scroll to explore ↓</div>
-    </section>
+    <div class="scene">
 
-    <!-- ── MENTAL MODEL ───────────────────────────────────────────── -->
-    <section id="mental-model" class="section section-mental-model reveal-section">
-      <div class="parallax-bg" data-speed="0.3"></div>
-      <div class="container">
-        <div class="section-label">01</div>
-        <h2 class="section-title">Mental Model</h2>
-        <p class="section-subtitle">The core questions this codebase answers — in order</p>
-        <div class="mental-model-grid" id="mental-model-list"></div>
-      </div>
-    </section>
+      <div class="book" id="book">
 
-    <!-- ── REPO TREE ──────────────────────────────────────────────── -->
-    <section id="repo-tree" class="section section-tree reveal-section">
-      <div class="container">
-        <div class="section-label">02</div>
-        <h2 class="section-title">Repository Structure</h2>
-        <p class="section-subtitle">Every top-level item, and why it exists</p>
-        <div class="tree-layout">
-          <div class="tree-interactive" id="tree-interactive"></div>
-          <div class="tree-annotations" id="tree-annotations"></div>
+        <!-- Left page (static) -->
+        <div class="book-page left-page" id="left-page">
+          <div class="page-inner" id="left-content"></div>
+          <div class="page-edge left-edge"></div>
         </div>
-      </div>
-    </section>
 
-    <!-- ── LAYER DEEP DIVES ───────────────────────────────────────── -->
-    <section id="layers" class="section section-layers reveal-section">
-      <div class="container-full">
-        <div class="container">
-          <div class="section-label">03</div>
-          <h2 class="section-title">Layer Deep Dives</h2>
-          <p class="section-subtitle">How each subsystem was built and why</p>
+        <!-- Spine -->
+        <div class="book-spine">
+          <div class="spine-title" id="spine-title"></div>
         </div>
-        <div class="layers-scroll" id="layers-list"></div>
-      </div>
-    </section>
 
-    <!-- ── DEPENDENCIES ──────────────────────────────────────────── -->
-    <section id="dependencies" class="section section-deps reveal-section">
-      <div class="container">
-        <div class="section-label">04</div>
-        <h2 class="section-title">Dependency Map</h2>
-        <p class="section-subtitle">Every dependency and the layer it serves</p>
-        <div class="prose" id="deps-content"></div>
-      </div>
-    </section>
+        <!-- Right page (flips) -->
+        <div class="book-page right-page" id="right-page">
+          <div class="page-face front" id="page-front">
+            <div class="page-inner" id="front-content"></div>
+          </div>
+          <div class="page-face back" id="page-back">
+            <div class="page-inner" id="back-content"></div>
+          </div>
+          <div class="page-edge right-edge"></div>
+        </div>
 
-    <!-- ── DEV SCAFFOLDING ────────────────────────────────────────── -->
-    <section id="dev-scaffolding" class="section section-scaffold reveal-section">
-      <div class="container">
-        <div class="section-label">05</div>
-        <h2 class="section-title">Dev Scaffolding</h2>
-        <p class="section-subtitle">Linting, CI, tests, and why they exist at this scale</p>
-        <div class="prose" id="scaffold-content"></div>
       </div>
-    </section>
 
-    <!-- ── E2E FLOW ───────────────────────────────────────────────── -->
-    <section id="e2e-flow" class="section section-flow reveal-section">
-      <div class="container">
-        <div class="section-label">06</div>
-        <h2 class="section-title">End-to-End Flow</h2>
-        <p class="section-subtitle">One command, traced through every layer</p>
-        <div class="e2e-diagram" id="e2e-content"></div>
-      </div>
-    </section>
+      <!-- Navigation -->
+      <button class="nav-btn nav-prev" id="nav-prev" aria-label="Previous page">&#8249;</button>
+      <button class="nav-btn nav-next" id="nav-next" aria-label="Next page">&#8250;</button>
 
-    <!-- ── COMMIT STORY ───────────────────────────────────────────── -->
-    <section id="commit-story" class="section section-commits reveal-section">
-      <div class="container">
-        <div class="section-label">07</div>
-        <h2 class="section-title">Built From Scratch</h2>
-        <p class="section-subtitle">The 10 commits that would reconstruct this project today</p>
-        <div class="timeline" id="timeline"></div>
-      </div>
-    </section>
+      <!-- Page indicator -->
+      <div class="page-indicator" id="page-indicator"></div>
 
-    <!-- ── SUMMARIES ──────────────────────────────────────────────── -->
-    <section id="summaries" class="section section-summary reveal-section">
-      <div class="container">
-        <div class="section-label">08</div>
-        <h2 class="section-title">Cheat Sheet</h2>
-        <p class="section-subtitle">One sentence per layer — internalize these and you understand the whole thing</p>
-        <div class="summary-grid" id="summary-grid"></div>
-      </div>
-    </section>
+    </div>
 
-    <!-- ── FOOTER ─────────────────────────────────────────────────── -->
-    <footer class="footer">
-      <div class="container">
-        <span>reverse-perspective</span>
-        <span>·</span>
-        <a id="footer-link" href="#" target="_blank" rel="noopener">View source on GitHub</a>
-      </div>
-    </footer>
-
-  </main>
+  </div>
 
   <script src="app.js" type="module"></script>
 </body>
