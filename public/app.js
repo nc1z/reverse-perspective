@@ -136,9 +136,11 @@ function parseLayerSections(md) {
 }
 
 function renderLayerSection(section) {
-  const body = section.body
+  const label = section.title
+    ? `<div class="layer-section-label">${esc(section.title)}</div>` : '';
+  const body  = section.body
     ? `<div class="layer-section-body prose">${marked.parse(section.body)}</div>` : '';
-  return `<div class="layer-section">${body}</div>`;
+  return `<div class="layer-section">${label}${body}</div>`;
 }
 
 function layerItems(d) {
@@ -159,12 +161,8 @@ function layerItems(d) {
     // Header + first section stay together to avoid orphaned titles
     items.push(header + renderLayerSection(sections[0]));
 
-    // Remaining sections carry a small "which layer" breadcrumb
     for (let i = 1; i < sections.length; i++) {
-      items.push(
-        `<div class="layer-breadcrumb">${esc(layer.name)}</div>` +
-        renderLayerSection(sections[i])
-      );
+      items.push(renderLayerSection(sections[i]));
     }
   }
   return items;
