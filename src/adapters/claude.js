@@ -8,14 +8,19 @@ export default {
   hint: 'claude --print',
   binary: 'claude',
 
-  args() {
-    return ['--print', '--output-format', 'text'];
+  models: [
+    { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6 (default)' },
+    { id: 'claude-opus-4-6',   label: 'Claude Opus 4.6' },
+    { id: 'claude-haiku-4-5',  label: 'Claude Haiku 4.5' },
+  ],
+  defaultModel: 'claude-sonnet-4-6',
+
+  args(model) {
+    return ['--print', '--output-format', 'text', '--model', model];
   },
 
-  /** Prompt is written to stdin */
   promptMode: 'stdin',
 
-  /** stdout is plain text — pass through as-is */
   transformOutput(output) {
     return output.trim();
   },

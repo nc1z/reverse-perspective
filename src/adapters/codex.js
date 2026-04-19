@@ -8,14 +8,20 @@ export default {
   hint: 'codex exec',
   binary: 'codex',
 
-  args() {
-    return ['exec'];
+  models: [
+    { id: 'gpt-4.5',   label: 'GPT-4.5 (default)' },
+    { id: 'o4-mini',   label: 'o4-mini' },
+    { id: 'o3',        label: 'o3' },
+    { id: 'gpt-4.1',   label: 'GPT-4.1' },
+  ],
+  defaultModel: 'gpt-4.5',
+
+  args(model) {
+    return ['exec', '--model', model];
   },
 
-  /** Prompt is written to stdin */
   promptMode: 'stdin',
 
-  /** stdout is plain text — pass through as-is */
   transformOutput(output) {
     return output.trim();
   },

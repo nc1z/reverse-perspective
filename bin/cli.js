@@ -136,6 +136,20 @@ if (!adapterId) process.exit(0);
 
 const adapter = ready.find(a => a.id === adapterId);
 
+// 3. Model
+const defaultModelIndex = adapter.models.findIndex(m => m.id === adapter.defaultModel);
+const { model } = await prompts(
+  {
+    type: 'select',
+    name: 'model',
+    message: 'Model',
+    choices: adapter.models.map(m => ({ title: m.label, value: m.id })),
+    initial: defaultModelIndex >= 0 ? defaultModelIndex : 0,
+  },
+  { onCancel }
+);
+if (!model) process.exit(0);
+
 // 3. Parse owner/repo
 const match = url.match(/github\.com\/([\w.\-]+)\/([\w.\-]+)/);
 const owner = match[1];
@@ -150,8 +164,8 @@ try {
   spinner.text = `Fetched ${metadata.full_name} — ${metadata.stargazers_count?.toLocaleString()} ★`;
 
   // Analyse
-  spinner.text = `Analyzing via ${adapter.hint} (this takes ~30–60s)…`;
-  const markdown = await analyze(repoContext, adapter, text => {
+  spinner.text = `Analyzing via ${adapter.hint} (${model}) — this takes ~30–60s…`;
+  const markdown = await analyze(repoContext, adapter, model, text => {
     spinner.text = `Analyzing… ${text.length.toLocaleString()} characters received`;
   });
 

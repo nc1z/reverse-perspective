@@ -8,14 +8,20 @@ export default {
   hint: 'copilot -p',
   binary: 'copilot',
 
-  args() {
-    return ['-p'];
+  models: [
+    { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6 (default)' },
+    { id: 'claude-opus-4-6',   label: 'Claude Opus 4.6' },
+    { id: 'gpt-4.1',           label: 'GPT-4.1' },
+    { id: 'o3',                label: 'o3' },
+  ],
+  defaultModel: 'claude-sonnet-4-6',
+
+  args(model) {
+    return ['-p', '--model', model];
   },
 
-  /** Prompt is written to stdin */
   promptMode: 'stdin',
 
-  /** stdout is plain text — pass through as-is */
   transformOutput(output) {
     return output.trim();
   },

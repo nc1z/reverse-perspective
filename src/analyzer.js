@@ -139,12 +139,13 @@ ${context}`;
  *
  * @param {object} repoContext  - output of github.fetchRepo()
  * @param {object} adapter      - one of the adapters from src/adapters/
+ * @param {string} model        - model ID to pass to the adapter
  * @param {function} onChunk    - called with accumulated text as chunks arrive
  * @returns {Promise<string>}   - full analysis markdown
  */
-export async function analyze(repoContext, adapter, onChunk) {
+export async function analyze(repoContext, adapter, model, onChunk) {
   const prompt = buildPrompt(repoContext);
-  const args = adapter.args();
+  const args = adapter.args(model);
 
   return new Promise((resolve, reject) => {
     const child = spawn(adapter.binary, args, {
