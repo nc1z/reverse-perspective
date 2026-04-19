@@ -137,14 +137,12 @@ if (!adapterId) process.exit(0);
 const adapter = ready.find(a => a.id === adapterId);
 
 // 3. Model
-const defaultModelIndex = adapter.models.findIndex(m => m.id === adapter.defaultModel);
 const { model } = await prompts(
   {
-    type: 'select',
+    type: 'text',
     name: 'model',
     message: 'Model',
-    choices: adapter.models.map(m => ({ title: m.label, value: m.id })),
-    initial: defaultModelIndex >= 0 ? defaultModelIndex : 0,
+    initial: adapter.defaultModel,
   },
   { onCancel }
 );
@@ -164,10 +162,19 @@ try {
   spinner.text = `Fetched ${metadata.full_name} — ${metadata.stargazers_count?.toLocaleString()} ★`;
 
   // Analyse
-  spinner.text = `Analyzing via ${adapter.hint} (${model}) — this takes ~30–60s…`;
-  const markdown = await analyze(repoContext, adapter, model, text => {
-    spinner.text = `Analyzing… ${text.length.toLocaleString()} characters received`;
-  });
+  const analyzeStart = Date.now();
+  const elapsedTimer = setInterval(() => {
+    const secs = Math.floor((Date.now() - analyzeStart) / 1000);
+    spinner.text = `Analyzing via ${adapter.hint} (${model}) — ${secs}s elapsed`;
+  }, 1000);
+  spinner.text = `Analyzing via ${adapter.hint} (${model}) — 0s elapsed`;
+
+  let markdown;
+  try {
+    markdown = await analyze(repoContext, adapter, model, () => {});
+  } finally {
+    clearInterval(elapsedTimer);
+  }
 
   // Parse
   spinner.text = 'Parsing analysis…';
