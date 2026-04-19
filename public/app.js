@@ -116,19 +116,57 @@ function repoTreeItems(d) {
     </div>`);
 }
 
+// Split a layer's markdown at h2/h3 heading boundaries.
+// Returns [{title: string|null, body: string}]
+function parseLayerSections(md) {
+  if (!md.trim()) return [];
+  const parts = md.split(/^(#{2,3} .+)$/m);
+  const result = [];
+
+  if (parts[0].trim()) result.push({ title: null, body: parts[0].trim() });
+
+  for (let i = 1; i < parts.length; i += 2) {
+    const title = parts[i].replace(/^#+\s*/, '').trim();
+    const body  = (parts[i + 1] || '').trim();
+    if (title || body) result.push({ title, body });
+  }
+
+  if (!result.length) result.push({ title: null, body: md.trim() });
+  return result;
+}
+
+function renderLayerSection(section) {
+  const label = section.title
+    ? `<div class="layer-section-label">${esc(section.title)}</div>` : '';
+  const body  = section.body
+    ? `<div class="layer-section-body prose">${marked.parse(section.body)}</div>` : '';
+  return `<div class="layer-section">${label}${body}</div>`;
+}
+
 function layerItems(d) {
   const items = [];
+  let idx = 0;
+
   for (const layer of (d?.layers ?? [])) {
-    const blocks = markdownToBlocks(layer.content || '');
-    const nameHTML = `<div class="layer-name">${esc(layer.name)}</div>`;
-    if (!blocks.length) {
-      items.push(`<div class="layer-item">${nameHTML}</div>`);
-      continue;
-    }
-    // Keep name and first block together so headers aren't orphaned
-    items.push(`<div class="layer-item">${nameHTML}<div class="prose">${blocks[0]}</div></div>`);
-    for (let i = 1; i < blocks.length; i++) {
-      items.push(`<div class="layer-cont prose">${blocks[i]}</div>`);
+    idx++;
+    const sections = parseLayerSections(layer.content || '');
+
+    const header = `<div class="layer-header">
+      <span class="layer-header-num">${String(idx).padStart(2,'0')}</span>
+      <span class="layer-header-name">${esc(layer.name)}</span>
+    </div>`;
+
+    if (!sections.length) { items.push(header); continue; }
+
+    // Header + first section stay together to avoid orphaned titles
+    items.push(header + renderLayerSection(sections[0]));
+
+    // Remaining sections carry a small "which layer" breadcrumb
+    for (let i = 1; i < sections.length; i++) {
+      items.push(
+        `<div class="layer-breadcrumb">${esc(layer.name)}</div>` +
+        renderLayerSection(sections[i])
+      );
     }
   }
   return items;
