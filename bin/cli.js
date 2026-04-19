@@ -84,7 +84,7 @@ if (subcommand === 'serve') {
   console.log(`\n  Serving: ${analysisPath}\n`);
   await open(`http://localhost:${port}`);
   console.log('  Press Ctrl+C to stop.\n');
-  process.exit(0);
+  // Keep the process alive so the server keeps running
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
