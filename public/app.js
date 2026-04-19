@@ -136,11 +136,9 @@ function parseLayerSections(md) {
 }
 
 function renderLayerSection(section) {
-  const label = section.title
-    ? `<div class="layer-section-label">${esc(section.title)}</div>` : '';
-  const body  = section.body
+  const body = section.body
     ? `<div class="layer-section-body prose">${marked.parse(section.body)}</div>` : '';
-  return `<div class="layer-section">${label}${body}</div>`;
+  return `<div class="layer-section">${body}</div>`;
 }
 
 function layerItems(d) {
