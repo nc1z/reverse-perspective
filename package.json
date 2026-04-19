@@ -1,0 +1,21 @@
+{
+  "name": "reverse-perspective",
+  "version": "0.1.0",
+  "description": "Explore any GitHub repository from the creator's perspective — animated, interactive, deep.",
+  "type": "module",
+  "bin": {
+    "reverse-perspective": "./bin/cli.js"
+  },
+  "scripts": {
+    "start": "node bin/cli.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "open": "^10.1.0",
+    "ora": "^8.1.0",
+    "prompts": "^2.4.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
