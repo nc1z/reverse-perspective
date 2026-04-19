@@ -195,7 +195,7 @@ try {
   spinner.succeed(`Ready — opening http://localhost:${port}`);
   console.log(`\n  Analysis saved to: ${tmpDir}`);
   console.log('  Press Ctrl+C to stop the server.');
-  console.log('  To view again later, run: node bin/cli.js serve\n');
+  console.log(`  To view again later, run: node bin/cli.js serve ${tmpDir}\n`);
 
   await open(`http://localhost:${port}`);
 } catch (err) {

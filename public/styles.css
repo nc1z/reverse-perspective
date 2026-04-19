@@ -13,25 +13,39 @@
   --cover-2:      #162036;
   --spine-bg:     #142030;
   --endpaper:     #2a3d5a;
+  --scene-bg:     #0e1218;
 
   --font-serif:   'Playfair Display', Georgia, serif;
   --font-body:    'Lora', Georgia, serif;
   --font-mono:    'JetBrains Mono', monospace;
 
-  --book-w:       min(92vw, 1080px);
-  --book-h:       min(82vh, 660px);
+  --book-w:       min(96vw, 1300px);
+  --book-h:       min(88vh, 820px);
   --page-w:       calc(var(--book-w) / 2 - 12px);
-  --spine-w:      24px;
+  --spine-w:      28px;
+}
+
+/* ── Dark mode ──────────────────────────────────────────────────────────────── */
+body.dark {
+  --paper:        #1e1e2e;
+  --paper-2:      #181824;
+  --paper-3:      #2a2a3e;
+  --ink:          #e8e0d0;
+  --ink-2:        #a89880;
+  --ink-3:        #5a5060;
+  --chapter:      #c08060;
+  --scene-bg:     #0a0a12;
 }
 
 /* ── Reset ──────────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
   width: 100%; height: 100%;
-  background: #0e1218;
+  background: var(--scene-bg);
   overflow: hidden;
   font-family: var(--font-body);
   color: var(--ink);
+  transition: background 0.4s;
 }
 
 /* ── Loading ────────────────────────────────────────────────────────────────── */
@@ -92,12 +106,14 @@ html, body {
   position: relative;
   background: var(--paper);
   overflow: hidden;
+  transition: background 0.4s;
 }
 
 .left-page {
   border-radius: 3px 0 0 3px;
   background:
     linear-gradient(to right, var(--paper-3) 0%, var(--paper) 8%);
+  transition: background 0.4s;
 }
 
 .right-page {
@@ -117,6 +133,7 @@ html, body {
   border-radius: 0 3px 3px 0;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+  transition: background 0.4s;
 }
 .back {
   transform: rotateY(180deg);
@@ -727,3 +744,46 @@ html, body {
   color: rgba(255,255,255,0.18);
   letter-spacing: 0.1em;
 }
+
+/* ── Dark mode toggle ────────────────────────────────────────────────────────── */
+.dark-toggle {
+  position: fixed;
+  top: 20px;
+  right: 24px;
+  background: none;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.4);
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.dark-toggle:hover {
+  color: var(--gold);
+  border-color: rgba(201,168,76,0.4);
+}
+
+/* ── Bigger base font sizes ──────────────────────────────────────────────────── */
+.ch-title        { font-size: clamp(22px, 3.5vw, 34px); }
+.ch-subtitle     { font-size: 15px; }
+.mm-text         { font-size: 15px; }
+.ann-text        { font-size: 14px; }
+.ann-path        { font-size: 12px; }
+.toc-item        { font-size: 15px; }
+.layer-name      { font-size: 17px; }
+.layer-content   { font-size: 13.5px; }
+.prose           { font-size: 14px; }
+.prose h2        { font-size: 18px; }
+.prose h3        { font-size: 15px; }
+.commit-msg      { font-size: 12.5px; }
+.commit-desc     { font-size: 13px; }
+.summary-layer   { font-size: 13.5px; }
+.summary-text    { font-size: 14px; }
+.flow-diagram    { font-size: 11px; }
+.cover-title     { font-size: clamp(26px, 4.5vw, 44px); }
+.cover-desc      { font-size: 15px; }
+.cover-stat-value{ font-size: 26px; }
+.page-inner      { padding: 52px 48px 44px; }

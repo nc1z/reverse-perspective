@@ -459,4 +459,11 @@ async function init() {
   });
 }
 
+// ── Dark mode toggle ──────────────────────────────────────────────────────
+const darkBtn = $('dark-toggle');
+darkBtn.addEventListener('click', () => {
+  const isDark = document.body.classList.toggle('dark');
+  darkBtn.textContent = isDark ? '☀ light' : '☽ dark';
+});
+
 init();
