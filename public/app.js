@@ -310,73 +310,91 @@ function renderSpread(index, leftEl, rightEl) {
 }
 
 // ── Page flip animation ────────────────────────────────────────────────────
+const FLIP_DURATION = 700;
+const FLIP_EASING   = 'cubicBezier(0.645, 0.045, 0.355, 1.000)';
+
 async function flipForward() {
   if (animating || spread >= SPREADS.length - 1) return;
   animating = true;
 
-  const next = spread + 1;
-  const rightPage  = $('right-page');
+  const next         = spread + 1;
+  const rightPage    = $('right-page');
+  const leftPage     = $('left-page');
   const frontContent = $('front-content');
   const backContent  = $('back-content');
   const leftContent  = $('left-content');
 
-  // Front = current right, Back = next left
-  renderSpread(spread, { innerHTML: '' }, frontContent);
-  SPREADS[spread][1](frontContent, data);
-  SPREADS[next][0](backContent, data);
+  try {
+    // Front = current right page, Back = next spread's left page
+    SPREADS[spread][1](frontContent, data);
+    SPREADS[next][0](backContent, data);
 
-  await anime({
-    targets: rightPage,
-    rotateY: [0, -180],
-    duration: 700,
-    easing: 'cubicBezier(0.645, 0.045, 0.355, 1.000)',
-  }).finished;
+    // Hide the static left page so it doesn't show through during the flip
+    leftPage.style.visibility = 'hidden';
 
-  spread = next;
+    await anime({
+      targets:  rightPage,
+      rotateY:  [0, -180],
+      duration: FLIP_DURATION,
+      easing:   FLIP_EASING,
+    }).finished;
 
-  // Settle: update left, reset flip, show new right front
-  SPREADS[spread][0](leftContent, data);
-  SPREADS[spread][1](frontContent, data);
-  rightPage.style.transform = 'rotateY(0deg)';
+    spread = next;
 
-  updateUI();
-  animating = false;
+    // Settle: reveal left with new content, reset flip page to front
+    SPREADS[spread][0](leftContent, data);
+    SPREADS[spread][1](frontContent, data);
+    anime.set(rightPage, { rotateY: 0 });
+    leftPage.style.visibility = '';
+
+    updateUI();
+  } finally {
+    animating = false;
+  }
 }
 
 async function flipBackward() {
   if (animating || spread <= 0) return;
   animating = true;
 
-  const prev = spread - 1;
+  const prev         = spread - 1;
   const rightPage    = $('right-page');
+  const leftPage     = $('left-page');
   const frontContent = $('front-content');
   const backContent  = $('back-content');
   const leftContent  = $('left-content');
 
-  // Front = prev right, Back = current left (what's visible now)
-  SPREADS[prev][1](frontContent, data);
-  SPREADS[spread][0](backContent, data);
+  try {
+    // Front = prev spread's right page, Back = current left page
+    SPREADS[prev][1](frontContent, data);
+    SPREADS[spread][0](backContent, data);
 
-  // Start already-flipped (back = current left is showing)
-  rightPage.style.transform = 'rotateY(-180deg)';
+    // Hide left page — the back of the flip page covers its role
+    leftPage.style.visibility = 'hidden';
 
-  // Small tick so browser registers the starting transform before animating
-  await new Promise(r => requestAnimationFrame(r));
+    // Start in the already-flipped position (back is visible)
+    anime.set(rightPage, { rotateY: -180 });
 
-  await anime({
-    targets: rightPage,
-    rotateY: [-180, 0],
-    duration: 700,
-    easing: 'cubicBezier(0.645, 0.045, 0.355, 1.000)',
-  }).finished;
+    // Wait one frame so the browser registers the starting state
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-  spread = prev;
+    await anime({
+      targets:  rightPage,
+      rotateY:  [-180, 0],
+      duration: FLIP_DURATION,
+      easing:   FLIP_EASING,
+    }).finished;
 
-  SPREADS[spread][0](leftContent, data);
-  rightPage.style.transform = 'rotateY(0deg)';
+    spread = prev;
 
-  updateUI();
-  animating = false;
+    SPREADS[spread][0](leftContent, data);
+    anime.set(rightPage, { rotateY: 0 });
+    leftPage.style.visibility = '';
+
+    updateUI();
+  } finally {
+    animating = false;
+  }
 }
 
 // ── UI state ──────────────────────────────────────────────────────────────

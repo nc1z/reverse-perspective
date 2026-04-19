@@ -58,78 +58,52 @@ ${manifestContent}
 ${sourceStr}
 `.trim();
 
-  return `Repository: https://github.com/${metadata.full_name}
+  return `You are analysing a software repository. Study the context below and return a single JSON object — no preamble, no explanation, no markdown fences, just raw JSON.
 
-I want to deeply understand how this codebase was built, as if I were one of
-the original developers reconstructing it from commit #1. The goal is not to
-use the tool — it's to understand the engineering thought process behind it.
-
-## How to approach this
-
-Put yourself in the shoes of the original developer(s). For every layer, ask:
-- What problem were they solving at this step?
-- Why this file / folder / abstraction and not another?
-- What would they have written FIRST vs later?
+Approach this as a developer reconstructing the project from commit #1. For every layer ask:
+- What problem were they solving?
+- Why this abstraction and not another?
+- What was written first vs later?
 - What decisions look obvious now but were hard-won?
 
-Explain the codebase in this voice:
-"I am a developer building <X>. What do I have to do first? I have to set up
-the repo. Then I need to decide on the data model. Then I need linting. Then..."
+## Required JSON schema
 
-Reimagine what the commit history would look like if this were being built
-from scratch today. Treat the repository as a story told in commits.
+Return exactly this structure (all fields required):
 
-## Required structure
-
-Write the response as a tree-structured deep dive, with these exact section headings:
-
-## 1. Mental Model
-The 3–5 core questions the whole repo answers, in order.
-Everything in the repo should map to one of these questions.
-Format as a numbered list.
-
-## 2. Top-Level Repo Tree
-Annotated file/folder map of the root. For every top-level item, one line on why it exists.
-Format each line as: \`item\` — reason it exists
-
-## 3. Per-Layer Deep Dives
-One section per major subdirectory or subsystem.
-For each layer use a ### heading with the layer name, then cover:
-- Purpose (one sentence)
-- Annotated file tree of that layer
-- The KEY data structures / abstractions, with illustrative code
-- The KEY functions and what they do
-- Design decisions: why THIS pattern, what tradeoffs it makes
-- Where this layer bites you (common bugs, gotchas, ops pain)
-
-## 4. Dependencies
-Read the manifest file as a DEPENDENCY MAP. Explain which deps serve which layer,
-and why optional extras are split the way they are.
-
-## 5. Dev Scaffolding
-Linting, pre-commit, CI workflows, tests, docs config. Explain why each exists.
-
-## 6. End-to-End Flow
-An ASCII diagram showing the primary user-facing command / entry point traced
-all the way through every layer, with the output directory structure it produces.
-
-## 7. Commit History as a Story
-List the ~10 commits that would build this from scratch, in order.
-Format as a numbered list: commit message — what was actually written
-
-## 8. One-Sentence Summary Per Layer
-A final cheat sheet. One line per subsystem.
-Format as a list: **Layer Name** — one sentence
+{
+  "mentalModel": [
+    "string — one core question the repo answers (3–5 items)"
+  ],
+  "repoTree": [
+    { "path": "string — top-level file or folder name", "annotation": "string — one line on why it exists" }
+  ],
+  "layers": [
+    {
+      "name": "string — subsystem name",
+      "content": "string — detailed markdown covering: purpose, key abstractions with code examples, key functions, design decisions, gotchas"
+    }
+  ],
+  "dependencies": "string — markdown: each dependency mapped to the layer it serves, why it was chosen",
+  "devScaffolding": "string — markdown: linting, CI, tests, pre-commit — why each exists at this project's scale",
+  "e2eFlow": "string — ASCII diagram tracing the primary entry point through every layer",
+  "commitStory": [
+    { "n": 1, "message": "string — git commit message", "description": "string — what was actually written in this commit" }
+  ],
+  "summaries": [
+    { "layer": "string — subsystem name", "oneLiner": "string — one sentence" }
+  ]
+}
 
 ## Rules
 
-- Focus PURELY on how the repo works and how it was built.
-- Skip getting started / install instructions.
-- Don't pad with generic advice. Every paragraph must be about THIS specific repo.
-- Prefer concrete examples over abstract description. Show actual code patterns.
-- Be honest about uncertainty — if inferring from imports, say so.
+- Be specific to THIS repo. No generic advice.
+- layers should cover every major subsystem — aim for 4–8 entries.
+- commitStory should have ~10 entries in chronological build order.
+- content fields inside layers must be valid markdown (code blocks, headings, lists).
+- e2eFlow must preserve ASCII whitespace — use \\n for newlines inside the JSON string.
+- Return ONLY the JSON object. Any text outside the JSON will break the parser.
 
-## Repo Context
+## Repository context
 
 ${context}`;
 }

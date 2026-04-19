@@ -1,11 +1,11 @@
 /**
- * Adapter for Claude Code CLI  (`claude --print`)
+ * Adapter for Claude Code CLI  (`claude -p`)
  * https://claude.ai/code
  */
 export default {
   id: 'claude',
   label: 'Claude',
-  hint: 'claude --print',
+  hint: 'claude -p',
   binary: 'claude',
 
   defaultModel: 'claude-sonnet-4-6',
