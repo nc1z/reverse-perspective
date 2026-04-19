@@ -9,17 +9,18 @@ Point it at any public repo and get an animated, interactive breakdown served on
 ## How it works
 
 1. Run the CLI and paste a GitHub URL
-2. It fetches the repo structure and key files via the GitHub API
-3. Sends everything to Claude (`claude -p`) with a "developer reconstruction" prompt
-4. Parses the response into sections and saves to disk
-5. Serves an animated frontend on localhost and opens your browser
+2. Pick your AI provider and model
+3. It fetches the repo structure and key files via the GitHub API
+4. Sends everything to your chosen AI with a "developer reconstruction" prompt
+5. Parses the response into sections and saves to disk
+6. Serves an animated frontend on localhost and opens your browser
 
 ## Getting started
 
 **Prerequisites**
 
 - Node.js 18+
-- [Claude Code](https://claude.ai/code) installed and logged in (`claude` on your PATH)
+- At least one supported AI CLI installed and authenticated (see below)
 
 ```bash
 git clone https://github.com/your-username/reverse-perspective
@@ -33,7 +34,7 @@ npm install
 node bin/cli.js
 ```
 
-You'll be prompted for a GitHub URL. The analysis takes ~30–60 seconds.
+You'll be prompted for a GitHub URL, your AI provider, and the model to use.
 
 **Re-open a previous result**
 
@@ -46,8 +47,20 @@ Picks from all saved analyses — no need to re-run the AI.
 Or point directly at a saved folder:
 
 ```bash
-node bin/cli.js serve /tmp/reverse-perspective-abc123/
+node bin/cli.js serve ./tmp/reverse-perspective-abc123/
 ```
+
+## Supported AI providers
+
+The CLI detects which of these are on your PATH and shows only what's available:
+
+| Provider | CLI | Default model |
+|----------|-----|---------------|
+| [Claude Code](https://claude.ai/code) | `claude` | `claude-sonnet-4-6` |
+| [Codex](https://github.com/openai/codex) | `codex` | `gpt-5.4` |
+| [GitHub Copilot](https://githubnext.com/projects/copilot-cli) | `copilot` | `claude-sonnet-4-6` |
+
+The model prompt is pre-filled with the default — press Enter to accept or type any model ID supported by your provider.
 
 ## Optional
 
@@ -76,7 +89,7 @@ The frontend is a dark-themed, animated long-scroll page with 8 sections:
 ## Tech
 
 - **CLI** — Node.js ESM, `prompts`, `ora`
-- **AI** — `claude --print` (Claude Code CLI) or `codex -p`
+- **AI** — adapter pattern; supports Claude Code, Codex, and GitHub Copilot CLIs
 - **GitHub** — REST API v3, no auth required for public repos
 - **Server** — Express.js
 - **Frontend** — Vanilla HTML/CSS/JS, [anime.js](https://animejs.com), [highlight.js](https://highlightjs.org), [marked](https://marked.js.org)
