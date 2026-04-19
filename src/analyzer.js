@@ -1,37 +1,20 @@
 import { spawn, execFileSync } from 'child_process';
+import { adapters } from './adapters/index.js';
 
 /**
- * Detect which CLI to use: prefers `claude`, falls back to `codex`.
- * Throws if neither is on PATH.
+ * Check which adapters have their binary available on PATH.
+ * Returns the subset that are usable right now.
  */
-function detectCLI() {
-  for (const cli of ['claude', 'codex']) {
+export function availableAdapters() {
+  return adapters.filter(adapter => {
     try {
-      execFileSync('which', [cli], { stdio: 'ignore' });
-      return cli;
+      execFileSync('which', [adapter.binary], { stdio: 'ignore' });
+      return true;
     } catch {
-      // not found, try next
+      return false;
     }
-  }
-  throw new Error(
-    'Neither `claude` nor `codex` found on PATH.\n' +
-    '  Install Claude Code: https://claude.ai/code'
-  );
+  });
 }
-
-/**
- * Build CLI args for the detected tool.
- * claude: --print --output-format stream-json --include-partial-messages
- * codex:  -p  (quiet / non-interactive mode)
- */
-function buildArgs(cli) {
-  if (cli === 'claude') {
-    return ['--print', '--output-format', 'text'];
-  }
-  // codex CLI uses -p for non-interactive mode
-  return ['-p'];
-}
-
 
 function buildPrompt(repoContext) {
   const { metadata, tree, readme, manifest, sourceFiles } = repoContext;
@@ -151,60 +134,62 @@ Format as a list: **Layer Name** — one sentence
 ${context}`;
 }
 
-export async function analyze(repoContext, onChunk) {
-  const cli = detectCLI();
-  const args = buildArgs(cli);
+/**
+ * Run the analysis using the given adapter.
+ *
+ * @param {object} repoContext  - output of github.fetchRepo()
+ * @param {object} adapter      - one of the adapters from src/adapters/
+ * @param {function} onChunk    - called with accumulated text as chunks arrive
+ * @returns {Promise<string>}   - full analysis markdown
+ */
+export async function analyze(repoContext, adapter, onChunk) {
   const prompt = buildPrompt(repoContext);
+  const args = adapter.args();
 
   return new Promise((resolve, reject) => {
-    const child = spawn(cli, args, {
+    const child = spawn(adapter.binary, args, {
       stdio: ['pipe', 'pipe', 'pipe'],
-      // Use a neutral cwd so claude doesn't pick up unrelated project context
       cwd: process.env.HOME || process.cwd(),
     });
 
     let accumulated = '';
+    let stderrBuf = '';
 
     child.stdout.on('data', (chunk) => {
       accumulated += chunk.toString();
       onChunk?.(accumulated);
     });
 
-    let stderrBuf = '';
     child.stderr.on('data', (chunk) => {
       stderrBuf += chunk.toString();
     });
 
     child.on('error', (err) => {
       if (err.code === 'ENOENT') {
-        reject(new Error(`'${cli}' not found on PATH. Install Claude Code: https://claude.ai/code`));
+        reject(new Error(`'${adapter.binary}' not found on PATH`));
       } else {
         reject(err);
       }
     });
 
     child.on('close', (code) => {
-      const final = accumulated.trim();
+      const final = adapter.transformOutput(accumulated);
 
       if (!final) {
         const detail = stderrBuf.trim()
           ? `\n\nstderr:\n${stderrBuf.trim()}`
           : '\n\n(no stderr output)';
-        reject(new Error(`${cli} exited with code ${code} and produced no output${detail}`));
+        reject(new Error(`${adapter.hint} exited with code ${code} and produced no output${detail}`));
         return;
       }
 
-      if (code !== 0) {
-        // Got output but non-zero exit — log stderr as a warning and continue
-        if (stderrBuf.trim()) {
-          process.stderr.write(`\n[warn] ${cli} stderr:\n${stderrBuf.trim()}\n`);
-        }
+      if (code !== 0 && stderrBuf.trim()) {
+        process.stderr.write(`\n[warn] ${adapter.hint} stderr:\n${stderrBuf.trim()}\n`);
       }
 
       resolve(final);
     });
 
-    // Write prompt to stdin and close it
     child.stdin.write(prompt, 'utf-8');
     child.stdin.end();
   });
