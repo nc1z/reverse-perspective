@@ -62,15 +62,6 @@ The CLI detects which of these are on your PATH and shows only what's available:
 
 The model prompt is pre-filled with the default — press Enter to accept or type any model ID supported by your provider.
 
-## Optional
-
-Set `GITHUB_TOKEN` to raise the GitHub API rate limit (useful for repos with many files):
-
-```bash
-export GITHUB_TOKEN=ghp_...
-node bin/cli.js
-```
-
 ## What you get
 
 The frontend is a dark-themed, animated long-scroll page with 8 sections:
@@ -86,10 +77,3 @@ The frontend is a dark-themed, animated long-scroll page with 8 sections:
 | 7 | Commit story | The ~10 commits that would rebuild this from scratch |
 | 8 | Cheat sheet | One sentence per layer |
 
-## Tech
-
-- **CLI** — Node.js ESM, `prompts`, `ora`
-- **AI** — adapter pattern; supports Claude Code, Codex, and GitHub Copilot CLIs
-- **GitHub** — REST API v3, no auth required for public repos
-- **Server** — Express.js
-- **Frontend** — Vanilla HTML/CSS/JS, [anime.js](https://animejs.com), [highlight.js](https://highlightjs.org), [marked](https://marked.js.org)
