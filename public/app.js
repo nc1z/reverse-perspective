@@ -8,305 +8,299 @@ const el = (tag, cls, html = '') => {
   return e;
 };
 const fmt = n => n >= 1_000_000 ? (n/1e6).toFixed(1)+'M' : n >= 1_000 ? (n/1e3).toFixed(1)+'k' : String(n ?? 0);
+const esc = str => String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 marked.setOptions({ gfm: true, breaks: true });
 
 // ── State ──────────────────────────────────────────────────────────────────
-let data       = null;
-let spread     = 0;
-let animating  = false;
+let data      = null;
+let SPREADS   = [];   // [[leftPage, rightPage], …] — built after measurement
+let spread    = 0;
+let animating = false;
 
-// ── Spread definitions ─────────────────────────────────────────────────────
-// Each entry: [leftRenderer, rightRenderer]
-// Renderers receive (container, data)
-const SPREADS = [
-  [renderEndpaper,     renderCover],
-  [renderTOC,          renderMentalModel],
-  [renderRepoTree,     renderLayers],
-  [renderDependencies, renderScaffolding],
-  [renderFlow,         renderCommits],
-  [renderSummary,      renderBackCover],
-];
+// A Page = { html: string, init?: (container: HTMLElement) => void }
 
-const SPREAD_LABELS = [
-  '',
-  'I · Mental Model',
-  'II · Repository',
-  'III · Dependencies',
-  'IV · Flow & History',
-  'V · Cheat Sheet',
-];
+// ── HTML helpers ──────────────────────────────────────────────────────────
 
-// ── Page renderers ─────────────────────────────────────────────────────────
-
-function renderEndpaper(container) {
-  container.innerHTML = `
-    <div class="endpaper" style="margin:-44px -40px -36px; height:calc(100% + 80px)">
-      <div class="endpaper-pattern">
-        <div class="endpaper-ornament">⊕</div>
-      </div>
-    </div>`;
+function sectionHeader(eyebrow, title, subtitle) {
+  return (eyebrow ? `<div class="ch-eyebrow">Chapter ${esc(eyebrow)}</div>` : '')
+    + `<div class="ch-title">${esc(title)}</div>`
+    + `<div class="ch-rule"></div>`
+    + (subtitle ? `<div class="ch-subtitle">${esc(subtitle)}</div>` : '');
 }
 
-function renderCover(container, d) {
+function contHeader(title) {
+  return `<div class="cont-header"><span class="cont-title">${esc(title)}</span><span class="cont-continued"> — continued</span></div>`;
+}
+
+// Parse markdown → array of top-level block HTML strings
+function markdownToBlocks(md) {
+  if (!md) return [];
+  const div = document.createElement('div');
+  div.innerHTML = marked.parse(md);
+  return Array.from(div.children).map(c => c.outerHTML);
+}
+
+// ── Fixed-page HTML builders ──────────────────────────────────────────────
+
+function htmlEndpaper() {
+  return `<div class="endpaper" style="margin:-52px -48px -44px;height:calc(100% + 96px)">
+    <div class="endpaper-pattern"><div class="endpaper-ornament">⊕</div></div>
+  </div>`;
+}
+
+function htmlCover(d) {
   const repo = d?.repo ?? {};
-  container.innerHTML = `
-    <div class="cover-page" style="margin:-44px -40px -36px; height:calc(100% + 80px)">
-      <div class="cover-border"></div>
-      <div class="cover-corner tl">✦</div>
-      <div class="cover-corner tr">✦</div>
-      <div class="cover-corner bl">✦</div>
-      <div class="cover-corner br">✦</div>
-      <div class="cover-eyebrow">reverse-perspective</div>
-      <div class="cover-title">${esc(repo.name || repo.fullName || '…')}</div>
-      <div class="cover-divider"></div>
-      <div class="cover-desc">${esc(repo.description || 'A developer\u2019s deep dive')}</div>
-      <div class="cover-stats">
-        <div class="cover-stat">
-          <div class="cover-stat-value">${fmt(repo.stars)}</div>
-          <div class="cover-stat-label">Stars</div>
-        </div>
-        <div class="cover-stat">
-          <div class="cover-stat-value">${fmt(repo.forks)}</div>
-          <div class="cover-stat-label">Forks</div>
-        </div>
-        <div class="cover-stat">
-          <div class="cover-stat-value">${fmt((d?.rawTree ?? []).length)}</div>
-          <div class="cover-stat-label">Files</div>
-        </div>
-      </div>
-      <div class="cover-footer">${esc(repo.language || '')}${repo.language && repo.license ? ' · ' : ''}${esc(repo.license || '')}</div>
-    </div>`;
+  return `<div class="cover-page" style="margin:-52px -48px -44px;height:calc(100% + 96px)">
+    <div class="cover-border"></div>
+    <div class="cover-corner tl">✦</div><div class="cover-corner tr">✦</div>
+    <div class="cover-corner bl">✦</div><div class="cover-corner br">✦</div>
+    <div class="cover-eyebrow">reverse-perspective</div>
+    <div class="cover-title">${esc(repo.name || repo.fullName || '…')}</div>
+    <div class="cover-divider"></div>
+    <div class="cover-desc">${esc(repo.description || 'A developer\u2019s deep dive')}</div>
+    <div class="cover-stats">
+      <div class="cover-stat"><div class="cover-stat-value">${fmt(repo.stars)}</div><div class="cover-stat-label">Stars</div></div>
+      <div class="cover-stat"><div class="cover-stat-value">${fmt(repo.forks)}</div><div class="cover-stat-label">Forks</div></div>
+      <div class="cover-stat"><div class="cover-stat-value">${fmt((d?.rawTree ?? []).length)}</div><div class="cover-stat-label">Files</div></div>
+    </div>
+    <div class="cover-footer">${esc(repo.language || '')}${repo.language && repo.license ? ' · ' : ''}${esc(repo.license || '')}</div>
+  </div>`;
 }
 
-function renderTOC(container) {
-  const chapters = [
-    'Mental Model',
-    'Repository Structure',
-    'Dependencies',
-    'Dev Scaffolding',
-    'End-to-End Flow',
-    'Commit History',
-    'Cheat Sheet',
-  ];
-  const pages = [3, 5, 7, 8, 9, 11, 13];
-
-  let html = pageHeader('Contents', null, 'Table of Contents');
-  html += '<div style="margin-top:8px">';
-  chapters.forEach((name, i) => {
+function htmlTOC(entries) {
+  let html = `<div class="ch-title">Contents</div><div class="ch-rule"></div><div style="margin-top:8px">`;
+  entries.forEach((e, i) => {
     html += `<div class="toc-item">
       <span class="toc-num">${String(i+1).padStart(2,'0')}</span>
-      <span class="toc-name">${name}</span>
+      <span class="toc-name">${esc(e.name)}</span>
       <span class="toc-dots"></span>
-      <span class="toc-page">${pages[i]}</span>
+      <span class="toc-page">${e.pageNum}</span>
     </div>`;
   });
   html += '</div>';
-  html += '<div class="page-number left">2</div>';
-  container.innerHTML = html;
+  return html;
 }
 
-function renderMentalModel(container, d) {
-  const items = d?.mentalModel ?? [];
-  let html = pageHeader('I', 'Mental Model', 'The core questions this codebase answers');
-  if (!items.length) {
-    html += '<p class="ch-subtitle">No data parsed for this section.</p>';
-  } else {
-    items.forEach((text, i) => {
-      html += `<div class="mm-item">
-        <div class="mm-num">${String(i+1).padStart(2,'0')}</div>
-        <div class="mm-text">${esc(text)}</div>
-      </div>`;
-    });
-  }
-  html += '<div class="page-number right">3</div>';
-  container.innerHTML = html;
-}
-
-function renderRepoTree(container, d) {
-  const annotations = d?.repoTree ?? [];
-  let html = pageHeader('II', 'Repo Tree', 'Every top-level item and why it exists');
-
-  if (annotations.length) {
-    html += '<div class="tree-annotations">';
-    annotations.slice(0, 18).forEach(item => {
-      html += `<div class="ann-item">
-        <div class="ann-path">${esc(item.path)}</div>
-        <div class="ann-text">${esc(item.annotation)}</div>
-      </div>`;
-    });
-    html += '</div>';
-  } else if (d?.rawTree?.length) {
-    // Fallback: render plain tree
-    html += '<div class="file-tree">';
-    const preview = buildTreePreview(d.rawTree.slice(0, 60));
-    html += preview;
-    html += '</div>';
-  } else {
-    html += '<p class="ch-subtitle">No tree data available.</p>';
-  }
-
-  html += '<div class="page-number left">4</div>';
-  container.innerHTML = html;
-  // Init interactive tree if rendered
-  initTreeNodes(container);
-}
-
-function buildTreePreview(paths) {
-  // Simple indent-based flat list
-  return paths.map(p => {
-    const depth = p.split('/').length - 1;
-    const name = p.split('/').pop();
-    const pad = '  '.repeat(depth);
-    const isDir = !name.includes('.');
-    return `<div style="padding-left:${depth * 12}px;color:${isDir ? 'var(--ink)' : 'var(--ink-2)'}">${pad}${name}</div>`;
-  }).join('');
-}
-
-function initTreeNodes(container) {
-  container.querySelectorAll('.tree-node.is-dir').forEach(node => {
-    const wrapper = node.closest('.tree-node-wrapper');
-    if (!wrapper) return;
-    const children = wrapper.querySelector('.tree-children');
-    if (!children) return;
-    node.addEventListener('click', () => {
-      const isOpen = node.classList.toggle('open');
-      children.style.maxHeight = isOpen ? children.scrollHeight + 'px' : '0';
-    });
-  });
-}
-
-function renderLayers(container, d) {
-  const layers = d?.layers ?? [];
-  let html = pageHeader('II', 'Layer Deep Dives', 'How each subsystem was designed');
-
-  if (!layers.length) {
-    html += '<p class="ch-subtitle">No layers parsed.</p>';
-  } else {
-    layers.forEach(layer => {
-      html += `<div class="layer-item">
-        <div class="layer-name">${esc(layer.name)}</div>
-        <div class="layer-content prose">${marked.parse(layer.content || '')}</div>
-      </div>`;
-    });
-  }
-
-  html += '<div class="page-number right">5</div>';
-  container.innerHTML = html;
-  container.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
-}
-
-function renderDependencies(container, d) {
-  let html = pageHeader('III', 'Dependencies', 'Every dependency mapped to the layer it serves');
-  if (d?.dependencies) {
-    html += `<div class="prose">${marked.parse(d.dependencies)}</div>`;
-  } else {
-    html += '<p class="ch-subtitle">No dependency data available.</p>';
-  }
-  html += '<div class="page-number left">6</div>';
-  container.innerHTML = html;
-  container.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
-}
-
-function renderScaffolding(container, d) {
-  let html = pageHeader('III', 'Dev Scaffolding', 'Linting, CI, tests — and why each exists');
-  if (d?.devScaffolding) {
-    html += `<div class="prose">${marked.parse(d.devScaffolding)}</div>`;
-  } else {
-    html += '<p class="ch-subtitle">No scaffolding data available.</p>';
-  }
-  html += '<div class="page-number right">7</div>';
-  container.innerHTML = html;
-  container.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
-}
-
-function renderFlow(container, d) {
-  let html = pageHeader('IV', 'End-to-End Flow', 'One command traced through every layer');
-  if (d?.e2eFlow) {
-    html += `<div class="flow-diagram">${esc(d.e2eFlow)}</div>`;
-  } else {
-    html += '<p class="ch-subtitle">No flow diagram available.</p>';
-  }
-  html += '<div class="page-number left">8</div>';
-  container.innerHTML = html;
-}
-
-function renderCommits(container, d) {
-  const commits = d?.commitStory ?? [];
-  let html = pageHeader('IV', 'Built From Scratch', 'The commits that would reconstruct this today');
-
-  if (!commits.length) {
-    html += '<p class="ch-subtitle">No commit story parsed.</p>';
-  } else {
-    html += '<div class="commits">';
-    commits.forEach(c => {
-      html += `<div class="commit">
-        <div class="commit-n">commit ${c.n}</div>
-        <div class="commit-msg">${esc(c.message)}</div>
-        ${c.description ? `<div class="commit-desc">${esc(c.description)}</div>` : ''}
-      </div>`;
-    });
-    html += '</div>';
-  }
-
-  html += '<div class="page-number right">9</div>';
-  container.innerHTML = html;
-}
-
-function renderSummary(container, d) {
-  const summaries = d?.summaries ?? [];
-  let html = pageHeader('V', 'Cheat Sheet', 'One sentence per layer — the whole codebase in a glance');
-
-  if (!summaries.length) {
-    html += '<p class="ch-subtitle">No summaries parsed.</p>';
-  } else {
-    summaries.forEach(s => {
-      html += `<div class="summary-item">
-        <div class="summary-layer">${esc(s.layer)}</div>
-        <div class="summary-text">${esc(s.oneLiner)}</div>
-      </div>`;
-    });
-  }
-
-  html += '<div class="page-number left">10</div>';
-  container.innerHTML = html;
-}
-
-function renderBackCover(container, d) {
+function htmlBackCover(d) {
   const repo = d?.repo ?? {};
-  container.innerHTML = `
-    <div class="back-cover" style="margin:-44px -40px -36px; height:calc(100% + 80px)">
-      <div class="back-cover-border"></div>
-      <div class="back-cover-ornament">✦</div>
-      <div class="back-cover-text">
-        ${esc(repo.fullName || '')}
-      </div>
-    </div>`;
+  return `<div class="back-cover" style="margin:-52px -48px -44px;height:calc(100% + 96px)">
+    <div class="back-cover-border"></div>
+    <div class="back-cover-ornament">✦</div>
+    <div class="back-cover-text">${esc(repo.fullName || '')}</div>
+  </div>`;
 }
 
-// ── Page header helper ─────────────────────────────────────────────────────
-function pageHeader(eyebrow, title, subtitle) {
-  return `
-    ${eyebrow ? `<div class="ch-eyebrow">Chapter ${eyebrow}</div>` : ''}
-    ${title   ? `<div class="ch-title">${esc(title)}</div>` : ''}
-    <div class="ch-rule"></div>
-    ${subtitle ? `<div class="ch-subtitle">${esc(subtitle)}</div>` : ''}
-  `;
+// ── Per-section item builders ─────────────────────────────────────────────
+
+function mentalModelItems(d) {
+  return (d?.mentalModel ?? []).map((text, i) =>
+    `<div class="mm-item">
+      <div class="mm-num">${String(i+1).padStart(2,'0')}</div>
+      <div class="mm-text">${esc(text)}</div>
+    </div>`);
 }
 
-function esc(str) {
-  return String(str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+function repoTreeItems(d) {
+  const annotations = d?.repoTree ?? [];
+  if (!annotations.length && d?.rawTree?.length) {
+    return d.rawTree.slice(0, 100).map(p => {
+      const depth = p.split('/').length - 1;
+      return `<div style="padding-left:${depth*12}px;font-family:var(--font-mono);font-size:11px;color:var(--ink-2);line-height:1.6">${esc(p.split('/').pop())}</div>`;
+    });
+  }
+  return annotations.map(item =>
+    `<div class="ann-item">
+      <div class="ann-path">${esc(item.path)}</div>
+      <div class="ann-text">${esc(item.annotation)}</div>
+    </div>`);
 }
 
-// ── Render a spread into DOM ───────────────────────────────────────────────
-function renderSpread(index, leftEl, rightEl) {
-  const [leftFn, rightFn] = SPREADS[index];
-  leftFn(leftEl, data);
-  rightFn(rightEl, data);
+function layerItems(d) {
+  const items = [];
+  for (const layer of (d?.layers ?? [])) {
+    const blocks = markdownToBlocks(layer.content || '');
+    const nameHTML = `<div class="layer-name">${esc(layer.name)}</div>`;
+    if (!blocks.length) {
+      items.push(`<div class="layer-item">${nameHTML}</div>`);
+      continue;
+    }
+    // Keep name and first block together so headers aren't orphaned
+    items.push(`<div class="layer-item">${nameHTML}<div class="prose">${blocks[0]}</div></div>`);
+    for (let i = 1; i < blocks.length; i++) {
+      items.push(`<div class="layer-cont prose">${blocks[i]}</div>`);
+    }
+  }
+  return items;
+}
+
+function dependencyItems(d) {
+  if (!d?.dependencies) return [];
+  return markdownToBlocks(d.dependencies).map(b => `<div class="prose">${b}</div>`);
+}
+
+function scaffoldingItems(d) {
+  if (!d?.devScaffolding) return [];
+  return markdownToBlocks(d.devScaffolding).map(b => `<div class="prose">${b}</div>`);
+}
+
+function flowItems(d) {
+  if (!d?.e2eFlow) return [];
+  return [`<div class="flow-diagram">${esc(d.e2eFlow)}</div>`];
+}
+
+function commitItems(d) {
+  return (d?.commitStory ?? []).map(c =>
+    `<div class="commit">
+      <div class="commit-n">commit ${c.n}</div>
+      <div class="commit-msg">${esc(c.message)}</div>
+      ${c.description ? `<div class="commit-desc">${esc(c.description)}</div>` : ''}
+    </div>`);
+}
+
+function summaryItems(d) {
+  return (d?.summaries ?? []).map(s =>
+    `<div class="summary-item">
+      <div class="summary-layer">${esc(s.layer)}</div>
+      <div class="summary-text">${esc(s.oneLiner)}</div>
+    </div>`);
+}
+
+// ── Paginator ─────────────────────────────────────────────────────────────
+// Fills a measuring div one item at a time.
+// When adding an item would overflow the page height, close the current page
+// and start a new continuation page.
+
+function paginate(measurer, maxH, headerHTML, contHTML, itemHTMLs, initFn) {
+  if (!itemHTMLs.length) {
+    return [{ html: headerHTML + '<p class="ch-subtitle" style="margin-top:20px;font-style:italic;color:var(--ink-3)">Nothing to display.</p>', init: initFn }];
+  }
+
+  const pages = [];
+  let current = headerHTML;
+  let itemsOnPage = 0;
+
+  for (const item of itemHTMLs) {
+    const candidate = current + item;
+    measurer.innerHTML = candidate;
+
+    if (measurer.scrollHeight > maxH && itemsOnPage > 0) {
+      // Item doesn't fit — commit current page, start continuation
+      pages.push({ html: current, init: initFn });
+      current = contHTML + item;
+      itemsOnPage = 1;
+    } else {
+      // Fits (or is the only item — must go somewhere)
+      current = candidate;
+      itemsOnPage++;
+    }
+  }
+
+  pages.push({ html: current, init: initFn });
+  return pages;
+}
+
+// ── Build all pages from data ─────────────────────────────────────────────
+
+function buildAllPages(d) {
+  // Measure the actual rendered page dimensions
+  const ref = $('front-content');
+  const rect = ref.getBoundingClientRect();
+
+  // Off-screen measuring div — same class = same padding/fonts
+  const measurer = document.createElement('div');
+  measurer.className = 'page-inner';
+  measurer.style.cssText = [
+    'position:fixed',
+    'top:-99999px',
+    'left:-99999px',
+    `width:${rect.width}px`,
+    'overflow:hidden',
+    'visibility:hidden',
+    'pointer-events:none',
+  ].join(';');
+  document.body.appendChild(measurer);
+
+  const maxH = rect.height;
+  const hlInit = cnt => cnt.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
+
+  const pages = [];
+  // Track where each section starts (pre-TOC insertion index)
+  const sectionStarts = {};
+
+  function section(name, items, header, cont, init) {
+    sectionStarts[name] = pages.length;
+    pages.push(...paginate(measurer, maxH, header, cont, items, init));
+  }
+
+  // ── Fixed pages ──────────────────────────────────────────────────────────
+  pages.push({ html: htmlEndpaper() });
+  pages.push({ html: htmlCover(d) });
+
+  // ── Content sections ──────────────────────────────────────────────────────
+  section('Mental Model', mentalModelItems(d),
+    sectionHeader('I', 'Mental Model', 'The core questions this codebase answers'),
+    contHeader('Mental Model'));
+
+  section('Repository', repoTreeItems(d),
+    sectionHeader('II', 'Repository', 'Every top-level path and why it exists'),
+    contHeader('Repository'),
+    cnt => initTreeNodes(cnt));
+
+  section('Layers', layerItems(d),
+    sectionHeader('II', 'Layer Deep Dives', 'How each subsystem was designed'),
+    contHeader('Layer Deep Dives'),
+    hlInit);
+
+  section('Dependencies', dependencyItems(d),
+    sectionHeader('III', 'Dependencies', 'Every dependency mapped to the layer it serves'),
+    contHeader('Dependencies'),
+    hlInit);
+
+  section('Dev Scaffolding', scaffoldingItems(d),
+    sectionHeader('III', 'Dev Scaffolding', 'Linting, CI, tests \u2014 and why each exists'),
+    contHeader('Dev Scaffolding'),
+    hlInit);
+
+  section('E2E Flow', flowItems(d),
+    sectionHeader('IV', 'End-to-End Flow', 'One command traced through every layer'),
+    contHeader('E2E Flow'));
+
+  section('Commit Story', commitItems(d),
+    sectionHeader('IV', 'Built From Scratch', 'The commits that would reconstruct this today'),
+    contHeader('Commit Story'));
+
+  section('Cheat Sheet', summaryItems(d),
+    sectionHeader('V', 'Cheat Sheet', 'One sentence per layer \u2014 the whole codebase at a glance'),
+    contHeader('Cheat Sheet'));
+
+  // ── Back cover ────────────────────────────────────────────────────────────
+  pages.push({ html: htmlBackCover(d) });
+
+  measurer.remove();
+
+  // Build TOC now that we know where each section starts.
+  // TOC will be inserted at index 2, shifting all content pages by +1.
+  const tocEntries = Object.entries(sectionStarts).map(([name, idx]) => ({
+    name,
+    // After TOC insertion at 2: page index becomes idx+1; 1-based: idx+2
+    pageNum: idx + 2,
+  }));
+  pages.splice(2, 0, { html: htmlTOC(tocEntries) });
+
+  // Pair into spreads: [[left, right], …]
+  const spreads = [];
+  for (let i = 0; i < pages.length; i += 2) {
+    spreads.push([pages[i], pages[i + 1] ?? { html: '' }]);
+  }
+  return spreads;
+}
+
+// ── Render a page into a container ────────────────────────────────────────
+
+function renderPage(page, container) {
+  container.innerHTML = page?.html ?? '';
+  page?.init?.(container);
 }
 
 // ── Page flip animation ────────────────────────────────────────────────────
@@ -325,28 +319,17 @@ async function flipForward() {
   const leftContent  = $('left-content');
 
   try {
-    // Front = current right page, Back = next spread's left page
-    SPREADS[spread][1](frontContent, data);
-    SPREADS[next][0](backContent, data);
-
-    // Hide the static left page so it doesn't show through during the flip
+    renderPage(SPREADS[spread][1], frontContent);
+    renderPage(SPREADS[next][0],   backContent);
     leftPage.style.visibility = 'hidden';
 
-    await anime({
-      targets:  rightPage,
-      rotateY:  [0, -180],
-      duration: FLIP_DURATION,
-      easing:   FLIP_EASING,
-    }).finished;
+    await anime({ targets: rightPage, rotateY: [0, -180], duration: FLIP_DURATION, easing: FLIP_EASING }).finished;
 
     spread = next;
-
-    // Settle: reveal left with new content, reset flip page to front
-    SPREADS[spread][0](leftContent, data);
-    SPREADS[spread][1](frontContent, data);
+    renderPage(SPREADS[spread][0], leftContent);
+    renderPage(SPREADS[spread][1], frontContent);
     anime.set(rightPage, { rotateY: 0 });
     leftPage.style.visibility = '';
-
     updateUI();
   } finally {
     animating = false;
@@ -365,32 +348,19 @@ async function flipBackward() {
   const leftContent  = $('left-content');
 
   try {
-    // Front = prev spread's right page, Back = current left page
-    SPREADS[prev][1](frontContent, data);
-    SPREADS[spread][0](backContent, data);
-
-    // Hide left page — the back of the flip page covers its role
+    renderPage(SPREADS[prev][1],   frontContent);
+    renderPage(SPREADS[spread][0], backContent);
     leftPage.style.visibility = 'hidden';
 
-    // Start in the already-flipped position (back is visible)
     anime.set(rightPage, { rotateY: -180 });
-
-    // Wait one frame so the browser registers the starting state
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-    await anime({
-      targets:  rightPage,
-      rotateY:  [-180, 0],
-      duration: FLIP_DURATION,
-      easing:   FLIP_EASING,
-    }).finished;
+    await anime({ targets: rightPage, rotateY: [-180, 0], duration: FLIP_DURATION, easing: FLIP_EASING }).finished;
 
     spread = prev;
-
-    SPREADS[spread][0](leftContent, data);
+    renderPage(SPREADS[spread][0], leftContent);
     anime.set(rightPage, { rotateY: 0 });
     leftPage.style.visibility = '';
-
     updateUI();
   } finally {
     animating = false;
@@ -402,12 +372,26 @@ function updateUI() {
   $('nav-prev').disabled = spread === 0;
   $('nav-next').disabled = spread === SPREADS.length - 1;
 
-  const label = SPREAD_LABELS[spread] || '';
-  $('page-indicator').textContent = label ? `— ${label} —` : '';
+  const p1 = spread * 2 + 1;
+  const p2 = p1 + 1;
+  const total = SPREADS.length * 2;
+  $('page-indicator').textContent = spread === 0 ? '' : `${p1} \u2013 ${p2}  /  ${total}`;
 
-  // Spine title
   const repo = data?.repo?.name || data?.repo?.fullName || '';
-  $('spine-title').textContent = repo ? `${repo}  ·  reverse-perspective` : 'reverse-perspective';
+  $('spine-title').textContent = repo ? `${repo}  \u00b7  reverse-perspective` : 'reverse-perspective';
+}
+
+// ── Interactive tree ──────────────────────────────────────────────────────
+function initTreeNodes(container) {
+  container.querySelectorAll('.tree-node.is-dir').forEach(node => {
+    const wrapper  = node.closest('.tree-node-wrapper');
+    const children = wrapper?.querySelector('.tree-children');
+    if (!children) return;
+    node.addEventListener('click', () => {
+      const isOpen = node.classList.toggle('open');
+      children.style.maxHeight = isOpen ? children.scrollHeight + 'px' : '0';
+    });
+  });
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
@@ -428,21 +412,30 @@ async function init() {
     return;
   }
 
+  // Show app before measuring so the DOM has real dimensions
+  $('loading').style.display = 'none';
+  $('app').style.display     = 'flex';
+
+  // Wait for fonts so text wrapping is accurate
+  await document.fonts.ready;
+
+  // Build all pages with overflow pagination
+  SPREADS = buildAllPages(data);
+
   // Render initial spread (cover)
-  renderSpread(0, $('left-content'), $('front-content'));
+  renderPage(SPREADS[0][0], $('left-content'));
+  renderPage(SPREADS[0][1], $('front-content'));
   updateUI();
 
   // Wire navigation
   $('nav-next').addEventListener('click', flipForward);
   $('nav-prev').addEventListener('click', flipBackward);
 
-  // Keyboard navigation
   document.addEventListener('keydown', e => {
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') flipForward();
     if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   flipBackward();
   });
 
-  // Click on page edges to flip
   $('right-page').addEventListener('click', e => {
     const rect = e.currentTarget.getBoundingClientRect();
     if (e.clientX > rect.left + rect.width * 0.7) flipForward();
@@ -452,36 +445,17 @@ async function init() {
     if (e.clientX < rect.left + rect.width * 0.3) flipBackward();
   });
 
-  // Add keyboard hint
-  const hint = el('div', 'key-hint');
-  hint.textContent = '← → arrow keys to turn pages';
-  document.body.appendChild(hint);
+  document.body.appendChild(el('div', 'key-hint', '\u2190 \u2192 arrow keys to turn pages'));
 
-  // Dismiss loading
-  anime({
-    targets: '#loading',
-    opacity: [1, 0],
-    duration: 600,
-    easing: 'easeInQuad',
-    complete: () => {
-      $('loading').style.display = 'none';
-      $('app').style.display = 'flex';
-      anime({
-        targets: '.book',
-        opacity: [0, 1],
-        scale: [0.96, 1],
-        duration: 700,
-        easing: 'easeOutExpo',
-      });
-    },
-  });
+  // Animate book in
+  anime({ targets: '.book', opacity: [0, 1], scale: [0.96, 1], duration: 700, easing: 'easeOutExpo' });
 }
 
-// ── Dark mode toggle ──────────────────────────────────────────────────────
+// ── Dark mode ─────────────────────────────────────────────────────────────
 const darkBtn = $('dark-toggle');
 darkBtn.addEventListener('click', () => {
   const isDark = document.body.classList.toggle('dark');
-  darkBtn.textContent = isDark ? '☀ light' : '☽ dark';
+  darkBtn.textContent = isDark ? '\u2600 light' : '\u263d dark';
 });
 
 init();

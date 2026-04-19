@@ -530,6 +530,28 @@ html, body {
 .tree-node.open .chevron { transform: rotate(90deg); }
 .tree-children { overflow: hidden; }
 
+/* ── Continuation header ─────────────────────────────────────────────────────── */
+.cont-header {
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--paper-3);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.cont-title {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.cont-continued {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-style: italic;
+  color: var(--ink-3);
+}
+
 /* ── Layer cards ─────────────────────────────────────────────────────────────── */
 .layer-item {
   margin-bottom: 20px;
@@ -542,7 +564,7 @@ html, body {
   font-size: 15px;
   font-weight: 700;
   color: var(--ink);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -554,15 +576,13 @@ html, body {
   background: var(--gold);
   flex-shrink: 0;
 }
-.layer-content {
-  font-size: 12px;
-  color: var(--ink-2);
-  line-height: 1.65;
-  max-height: 120px;
-  overflow-y: auto;
+/* Continuation block within a layer (when a layer overflows to the next page) */
+.layer-cont {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  padding-left: 16px;
+  border-left: 2px solid var(--paper-3);
 }
-.layer-content::-webkit-scrollbar { width: 2px; }
-.layer-content::-webkit-scrollbar-thumb { background: var(--paper-3); }
 
 /* ── Prose ───────────────────────────────────────────────────────────────────── */
 .prose {
@@ -628,24 +648,21 @@ html, body {
 }
 
 /* ── Commit timeline ─────────────────────────────────────────────────────────── */
-.commits { padding-left: 20px; position: relative; }
-.commits::before {
-  content: '';
-  position: absolute;
-  left: 6px; top: 6px; bottom: 6px;
-  width: 1px;
-  background: var(--paper-3);
-}
+/* Each commit stands alone — no wrapper needed across page boundaries */
 .commit {
   position: relative;
-  margin-bottom: 16px;
-  padding-left: 16px;
+  margin-bottom: 14px;
+  padding: 10px 12px 10px 32px;
+  background: var(--paper-2);
+  border-radius: 3px;
+  border-left: 2px solid var(--paper-3);
 }
 .commit::before {
   content: '';
   position: absolute;
-  left: -14px;
-  top: 6px;
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 8px; height: 8px;
   border-radius: 50%;
   background: var(--paper);
@@ -774,7 +791,6 @@ html, body {
 .ann-path        { font-size: 12px; }
 .toc-item        { font-size: 15px; }
 .layer-name      { font-size: 17px; }
-.layer-content   { font-size: 13.5px; }
 .prose           { font-size: 14px; }
 .prose h2        { font-size: 18px; }
 .prose h3        { font-size: 15px; }
