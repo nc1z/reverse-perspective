@@ -207,7 +207,9 @@ function buildAllPages(d) {
   const ref = $('front-content');
   const rect = ref.getBoundingClientRect();
 
-  // Off-screen measuring div — same class = same padding/fonts
+  // Off-screen measuring div — same class = same padding/fonts/sizes.
+  // height:auto overrides the `height:100%` in .page-inner so the div grows
+  // with content; scrollHeight then reflects the true content height.
   const measurer = document.createElement('div');
   measurer.className = 'page-inner';
   measurer.style.cssText = [
@@ -215,7 +217,8 @@ function buildAllPages(d) {
     'top:-99999px',
     'left:-99999px',
     `width:${rect.width}px`,
-    'overflow:hidden',
+    'height:auto',
+    'overflow:visible',
     'visibility:hidden',
     'pointer-events:none',
   ].join(';');
