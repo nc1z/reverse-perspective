@@ -91,8 +91,16 @@ exportMenu.addEventListener('click', (e) => {
 });
 
 function exportPDF() {
-  // Use browser print to PDF
+  const wasDark = document.body.classList.contains('dark');
+  if (wasDark) {
+    document.body.classList.remove('dark');
+    $('dark-toggle').textContent = 'dark';
+  }
   window.print();
+  if (wasDark) {
+    document.body.classList.add('dark');
+    $('dark-toggle').textContent = 'light';
+  }
 }
 
 function exportDOCX() {
