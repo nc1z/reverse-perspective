@@ -220,10 +220,17 @@ h1 {
   padding-top: 1px;
 }
 
-/* ── Dark toggle ─────────────────────────────────────────────────────────── */
-#dark-toggle {
+/* ── Toolbar ──────────────────────────────────────────────────────────────── */
+.toolbar {
   position: fixed;
   top: 20px; right: 24px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  z-index: 100;
+}
+
+.toolbar button {
   background: none;
   border: 1px solid var(--rule);
   border-radius: 4px;
@@ -234,7 +241,49 @@ h1 {
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
 }
-#dark-toggle:hover {
+.toolbar button:hover {
   color: var(--text);
   border-color: var(--text-3);
+}
+
+/* Export dropdown */
+.export-wrap {
+  position: relative;
+}
+.export-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  overflow: hidden;
+  min-width: 100px;
+}
+.export-menu.open { display: block; }
+.export-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-radius: 0;
+  padding: 8px 14px;
+  font-size: 12px;
+}
+.export-menu button:hover {
+  background: var(--mono-bg);
+}
+.export-menu button + button {
+  border-top: 1px solid var(--rule);
+}
+
+/* ── Print (PDF export) ──────────────────────────────────────────────────── */
+@media print {
+  body { background: #fff; color: #111; }
+  .toolbar, #loading { display: none !important; }
+  .paper { max-width: none; padding: 0; }
+  hr { border-color: #ddd; }
+  #flow { background: #f5f5f5; }
 }

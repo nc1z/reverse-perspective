@@ -155,6 +155,7 @@ const owner = match[1];
 const repo  = match[2].replace(/\.git$/, '');
 
 const spinner = ora({ text: 'Starting…', color: 'cyan' }).start();
+const totalStart = Date.now();
 
 try {
   // Metadata (for UI header)
@@ -196,8 +197,10 @@ try {
   spinner.text = 'Starting local server…';
   const port = await startServer(analysis);
 
+  const totalSecs = ((Date.now() - totalStart) / 1000).toFixed(1);
   spinner.succeed(`Ready — opening http://localhost:${port}`);
-  console.log(`\n  Analysis saved to: ${tmpDir}`);
+  console.log(`\n  Generated in ${totalSecs}s`);
+  console.log(`  Analysis saved to: ${tmpDir}`);
   console.log('  Press Ctrl+C to stop the server.');
   console.log(`  To view again later, run: node bin/cli.js serve ${tmpDir}\n`);
 

@@ -18,6 +18,7 @@ async function init() {
     return;
   }
 
+  window.__data = data;
   const { repo, overview, architecture, reconstruction, e2eFlow, decisions } = data;
 
   // Header
@@ -68,5 +69,89 @@ $('dark-toggle').addEventListener('click', () => {
   const dark = document.body.classList.toggle('dark');
   $('dark-toggle').textContent = dark ? 'light' : 'dark';
 });
+
+// Export dropdown
+const exportBtn = $('export-btn');
+const exportMenu = $('export-menu');
+
+exportBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  exportMenu.classList.toggle('open');
+});
+document.addEventListener('click', () => exportMenu.classList.remove('open'));
+
+exportMenu.addEventListener('click', (e) => {
+  const format = e.target.dataset.format;
+  if (!format) return;
+  exportMenu.classList.remove('open');
+
+  if (format === 'pdf') exportPDF();
+  else if (format === 'docx') exportDOCX();
+  else if (format === 'md') exportMarkdown();
+});
+
+function exportPDF() {
+  // Use browser print to PDF
+  window.print();
+}
+
+function exportDOCX() {
+  // Generate a simple HTML blob that Word can open
+  const html = `
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>Export</title></head>
+<body>${document.querySelector('.paper').innerHTML}</body></html>`;
+
+  const blob = new Blob([html], { type: 'application/msword' });
+  downloadBlob(blob, `${getFilename()}.doc`);
+}
+
+function exportMarkdown() {
+  const d = window.__data;
+  if (!d) return;
+
+  const lines = [
+    `# ${d.repo.name || d.repo.fullName}`,
+    '',
+    `> ${d.overview}`,
+    '',
+    '## Architecture',
+    '',
+    ...(d.architecture ?? []).map((a, i) => `${i+1}. **${a.name}** — ${a.role}`),
+    '',
+    '## End-to-End Flow',
+    '',
+    '```',
+    d.e2eFlow || '',
+    '```',
+    '',
+    '## How I\'d Rebuild This',
+    '',
+    ...(d.reconstruction ?? []).map((s, i) => `${i+1}. ${s}`),
+    '',
+    '## Design Decisions',
+    '',
+    ...(d.decisions ?? []).map(d => `- ${d}`),
+    '',
+  ];
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
+  downloadBlob(blob, `${getFilename()}.md`);
+}
+
+function getFilename() {
+  return window.__data?.repo?.name || 'reverse-perspective';
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 init();

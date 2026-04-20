@@ -63,7 +63,17 @@
     </article>
   </main>
 
-  <button id="dark-toggle">dark</button>
+  <div class="toolbar">
+    <div class="export-wrap">
+      <button id="export-btn">export</button>
+      <div class="export-menu" id="export-menu">
+        <button data-format="pdf">PDF</button>
+        <button data-format="docx">DOCX</button>
+        <button data-format="md">Markdown</button>
+      </div>
+    </div>
+    <button id="dark-toggle">dark</button>
+  </div>
 
   <script src="app.js" type="module"></script>
 </body>
