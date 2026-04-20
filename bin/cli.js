@@ -163,6 +163,23 @@ try {
   const metadata = await fetchMetadata(owner, repo);
   spinner.text = `${metadata.full_name} — ${metadata.stargazers_count?.toLocaleString()} ★`;
 
+  // Warn if the repository is large
+  const repoSizeKB = metadata.size ?? 0;
+  if (repoSizeKB > 5_000) {
+    const sizeMB = (repoSizeKB / 1024).toFixed(0);
+    spinner.stop();
+    console.log(`\n  ⚠  ${metadata.full_name} is ~${sizeMB} MB.`);
+    console.log('     Large repositories consume more tokens and take longer to analyze.\n');
+    const { proceed } = await prompts({
+      type: 'confirm',
+      name: 'proceed',
+      message: 'Continue anyway?',
+      initial: true,
+    }, { onCancel });
+    if (!proceed) process.exit(0);
+    spinner.start();
+  }
+
   // Ingest (gitingest gets the full repo context)
   spinner.text = 'Ingesting repository via gitingest…';
   const digest = ingest(url, msg => { spinner.text = msg; });
