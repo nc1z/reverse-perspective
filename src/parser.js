@@ -40,11 +40,12 @@ function extractJSON(text) {
 
 function normalise(j) {
   return {
-    overview:       asString(j.overview),
-    architecture:   asArchitecture(j.architecture),
-    reconstruction: asStringArray(j.reconstruction),
-    e2eFlow:        asString(j.e2eFlow),
-    decisions:      asStringArray(j.decisions),
+    overview:        asString(j.overview),
+    architecture:    asArchitecture(j.architecture),
+    reconstruction:  asStringArray(j.reconstruction),
+    e2eFlow:         asString(j.e2eFlow),
+    decisions:       asStringArray(j.decisions),
+    criticalMissing: asStringArray(j.criticalMissing),
   };
 }
 

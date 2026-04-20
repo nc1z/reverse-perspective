@@ -16,3 +16,27 @@ export async function fetchMetadata(owner, repo) {
   if (!res.ok) throw new Error(`GitHub API error ${res.status}`);
   return res.json();
 }
+
+/**
+ * Fetch the raw contents of specific files by path.
+ * Returns { path: content } for files that were successfully retrieved.
+ */
+export async function fetchFiles(owner, repo, paths) {
+  const results = {};
+  for (const path of paths) {
+    try {
+      const res = await fetch(
+        `${BASE}/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`,
+        { headers: HEADERS }
+      );
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data.encoding === 'base64') {
+        results[path] = Buffer.from(data.content.replace(/\n/g, ''), 'base64').toString('utf-8');
+      }
+    } catch {
+      // skip files that can't be fetched
+    }
+  }
+  return results;
+}

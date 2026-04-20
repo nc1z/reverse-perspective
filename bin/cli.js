@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const RESULTS_DIR = join(__dirname, '..', 'tmp');
 
-import { fetchMetadata } from '../src/github.js';
+import { fetchMetadata, fetchFiles } from '../src/github.js';
 import { ingest } from '../src/ingest.js';
 import { analyze, availableAdapters } from '../src/analyzer.js';
 import { parseAnalysis } from '../src/parser.js';
@@ -182,9 +182,35 @@ try {
     clearInterval(elapsedTimer);
   }
 
-  // Parse
+  // First parse — check if the AI flagged missing critical files
   spinner.text = 'Parsing analysis…';
-  const analysis = parseAnalysis(raw, metadata);
+  let firstPass = parseAnalysis(raw, metadata);
+
+  let analysis;
+  if (firstPass.criticalMissing?.length > 0) {
+    spinner.text = `Fetching ${firstPass.criticalMissing.length} missing critical file(s)…`;
+    const additionalFiles = await fetchFiles(owner, repo, firstPass.criticalMissing);
+    const fetched = Object.keys(additionalFiles).length;
+
+    if (fetched > 0) {
+      spinner.text = `Re-analyzing with ${fetched} additional file(s)…`;
+      const elapsedTimer2 = setInterval(() => {
+        const secs = Math.floor((Date.now() - analyzeStart) / 1000);
+        spinner.text = `Re-analyzing (${fetched} extra files) — ${secs}s elapsed`;
+      }, 1000);
+      let raw2;
+      try {
+        raw2 = await analyze(digest, adapter, model, () => {}, additionalFiles);
+      } finally {
+        clearInterval(elapsedTimer2);
+      }
+      analysis = parseAnalysis(raw2, metadata);
+    } else {
+      analysis = firstPass;
+    }
+  } else {
+    analysis = firstPass;
+  }
 
   // Save
   const hash = createHash('md5').update(url).digest('hex').slice(0, 8);
