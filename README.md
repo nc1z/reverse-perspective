@@ -4,8 +4,6 @@ Understand any GitHub repository from the creator's perspective.
 
 Point it at any public repo and get a research paper-style breakdown served on localhost: overview, architecture, end-to-end flow, reconstruction steps, and design decisions — all written in first person as if you built it.
 
-![demo](https://placeholder)
-
 ## Getting started
 
 **Prerequisites**
