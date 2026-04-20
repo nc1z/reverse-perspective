@@ -11,7 +11,7 @@ export default {
   defaultModel: 'gpt-5.4',
 
   args(model) {
-    return ['exec', '--model', model];
+    return ['exec', '--model', model, '--skip-git-repo-check'];
   },
 
   promptMode: 'stdin',
