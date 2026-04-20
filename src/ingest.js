@@ -1,40 +1,28 @@
 import { execFileSync } from 'child_process';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(__dirname, '..');
 
 /**
  * Run gitingest on a GitHub URL and return the LLM-ready digest.
- * Uses `uvx` to run gitingest without a global install.
+ * Uses `uv run` to run gitingest from the project's Python dependencies.
  */
 export function ingest(url, onProgress) {
   onProgress?.('Running gitingest...');
 
-  // Try uvx first (uv tool run), fall back to gitingest directly
-  const commands = [
-    ['uvx', ['gitingest', url, '--output', '-']],
-    ['gitingest', [url, '--output', '-']],
-  ];
-
-  for (const [binary, args] of commands) {
-    try {
-      execFileSync('which', [binary], { stdio: 'ignore' });
-      const output = execFileSync(binary, args, {
-        encoding: 'utf-8',
-        maxBuffer: 50 * 1024 * 1024, // 50MB — large repos
-        timeout: 120_000,            // 2 min
-      });
-      return output;
-    } catch (err) {
-      if (err.code === 'ENOENT' || err.status === 1 && !err.stdout) continue;
-      // If the command was found but failed, throw
-      if (err.stderr) {
-        throw new Error(`gitingest failed: ${err.stderr.toString().trim()}`);
-      }
-      throw err;
+  try {
+    return execFileSync('uv', ['run', 'gitingest', url, '--output', '-'], {
+      encoding: 'utf-8',
+      cwd: ROOT,
+      maxBuffer: 50 * 1024 * 1024,
+      timeout: 120_000,
+    });
+  } catch (err) {
+    if (err.stderr) {
+      throw new Error(`gitingest failed: ${err.stderr.toString().trim()}`);
     }
+    throw err;
   }
-
-  throw new Error(
-    'gitingest not found. Install it with:\n\n' +
-    '  uv tool install gitingest\n\n' +
-    'Or: pip install gitingest'
-  );
 }
