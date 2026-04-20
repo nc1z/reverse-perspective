@@ -15,9 +15,11 @@ export function availableAdapters() {
   });
 }
 
-function buildPrompt(digest, additionalFiles = {}) {
+function buildPrompt(digest, additionalFiles = {}, structureOnly = false) {
+  const isSecondPass = Object.keys(additionalFiles).length > 0;
+
   let extra = '';
-  if (Object.keys(additionalFiles).length > 0) {
+  if (isSecondPass) {
     extra = '\n\n## Additional Files (fetched to fill gaps you identified)\n';
     for (const [path, content] of Object.entries(additionalFiles)) {
       extra += `\n### ${path}\n\`\`\`\n${content}\n\`\`\`\n`;
@@ -25,15 +27,20 @@ function buildPrompt(digest, additionalFiles = {}) {
     extra += '\nYou now have complete context. Produce the final analysis.';
   }
 
-  const missingNotice = Object.keys(additionalFiles).length > 0
+  const missingNotice = isSecondPass
     ? '' // second pass — no need to ask for more files
+    : structureOnly
+    ? `
+- criticalMissing (MANDATORY): You only have the directory tree — no file contents.
+  You MUST list the 3-5 most important source files (entry points, core logic, key modules)
+  so they can be fetched and given to you for a proper analysis. Use repo-relative paths.`
     : `
 - criticalMissing (optional): If any files that are essential to accurately describe
   the architecture, entry point, or core logic appear in the tree but are absent or
   truncated in the digest, list their repo-relative paths here (max 5, source code only).
   Leave empty or omit if you have sufficient context.`;
 
-  const criticalMissingField = Object.keys(additionalFiles).length > 0
+  const criticalMissingField = isSecondPass
     ? ''
     : `\n  "criticalMissing": ["path/to/file"]`;
 
@@ -81,8 +88,8 @@ ${digest}${extra}`;
  * @param {object} additionalFiles - { path: content } from a gap-fill fetch (second pass)
  * @returns {Promise<string>}      - full analysis JSON string
  */
-export async function analyze(digest, adapter, model, onChunk, additionalFiles = {}) {
-  const prompt = buildPrompt(digest, additionalFiles);
+export async function analyze(digest, adapter, model, onChunk, additionalFiles = {}, structureOnly = false) {
+  const prompt = buildPrompt(digest, additionalFiles, structureOnly);
   const args = adapter.args(model);
 
   return new Promise((resolve, reject) => {

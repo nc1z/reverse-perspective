@@ -19,7 +19,7 @@ import open from 'open';
 const onCancel = () => { console.log('\n  Cancelled.\n'); process.exit(0); };
 
 // ── Banner ────────────────────────────────────────────────────────────────────
-console.log('\n  reverse-perspective  —  understand any codebase from the inside out\n');
+console.log('\n  reverse-perspective  —  understand any codebase from the creator\'s perspective\n');
 
 const subcommand = process.argv[2];
 
@@ -85,6 +85,7 @@ if (subcommand === 'serve') {
   console.log(`\n  Serving: ${analysisPath}\n`);
   await open(`http://localhost:${port}`);
   console.log('  Press Ctrl+C to stop.\n');
+  process.on('SIGINT', () => { console.log('\n  Stopped.\n'); process.exit(0); });
   await new Promise(() => {}); // keep alive until Ctrl+C
 }
 
@@ -182,7 +183,12 @@ try {
 
   // Ingest (gitingest gets the full repo context)
   spinner.text = 'Ingesting repository via gitingest…';
-  const digest = ingest(url, msg => { spinner.text = msg; });
+  const { digest, structureOnly } = ingest(url, msg => { spinner.text = msg; });
+
+  if (structureOnly) {
+    spinner.warn('Repository is very large — using structure-only view. Will fetch key files after first pass.');
+    spinner.start();
+  }
 
   // Analyse
   const analyzeStart = Date.now();
@@ -194,7 +200,7 @@ try {
 
   let raw;
   try {
-    raw = await analyze(digest, adapter, model, () => {});
+    raw = await analyze(digest, adapter, model, () => {}, {}, structureOnly);
   } finally {
     clearInterval(elapsedTimer);
   }
@@ -248,6 +254,8 @@ try {
   console.log(`  To view again later, run: node bin/cli.js serve ${tmpDir}\n`);
 
   await open(`http://localhost:${port}`);
+  process.on('SIGINT', () => { console.log('\n  Stopped.\n'); process.exit(0); });
+  await new Promise(() => {}); // keep alive until Ctrl+C
 } catch (err) {
   spinner.fail('Something went wrong');
   console.error('\n' + err.message + '\n');
