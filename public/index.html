@@ -4,72 +4,67 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>reverse-perspective</title>
-
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
-
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-  <!-- Loading -->
   <div id="loading">
-    <div class="loading-inner">
-      <div class="loading-ornament">✦</div>
-      <div class="loading-title">reverse-perspective</div>
-      <div class="loading-sub">Opening the book…</div>
-    </div>
+    <span class="loading-dot"></span>
   </div>
 
-  <!-- Book -->
-  <div id="app" style="display:none">
+  <main id="app" hidden>
+    <article class="paper">
 
-    <div class="scene">
-
-      <div class="book" id="book">
-
-        <!-- Left page (static) -->
-        <div class="book-page left-page" id="left-page">
-          <div class="page-inner" id="left-content"></div>
-          <div class="page-edge left-edge"></div>
+      <header class="paper-header">
+        <div class="header-left">
+          <h1 id="repo-name"></h1>
+          <a id="repo-url" class="repo-url" target="_blank" rel="noopener"></a>
         </div>
+        <div class="header-right" id="repo-stats"></div>
+      </header>
 
-        <!-- Spine -->
-        <div class="book-spine">
-          <div class="spine-title" id="spine-title"></div>
-        </div>
+      <hr />
 
-        <!-- Right page (flips) -->
-        <div class="book-page right-page" id="right-page">
-          <div class="page-face front" id="page-front">
-            <div class="page-inner" id="front-content"></div>
-          </div>
-          <div class="page-face back" id="page-back">
-            <div class="page-inner" id="back-content"></div>
-          </div>
-          <div class="page-edge right-edge"></div>
-        </div>
+      <section class="paper-section">
+        <div class="section-label">Abstract</div>
+        <p id="abstract"></p>
+      </section>
 
+      <hr />
+
+      <div class="paper-grid">
+        <section class="paper-section">
+          <div class="section-label">Architecture</div>
+          <div id="architecture"></div>
+        </section>
+        <section class="paper-section">
+          <div class="section-label">End-to-End Flow</div>
+          <pre id="flow"></pre>
+        </section>
       </div>
 
-      <!-- Navigation -->
-      <button class="nav-btn nav-prev" id="nav-prev" aria-label="Previous page">&#8249;</button>
-      <button class="nav-btn nav-next" id="nav-next" aria-label="Next page">&#8250;</button>
+      <hr />
 
-      <!-- Page indicator -->
-      <div class="page-indicator" id="page-indicator"></div>
+      <section class="paper-section">
+        <div class="section-label">Design Decisions</div>
+        <ul id="decisions"></ul>
+      </section>
 
-    </div>
+      <hr />
 
-  </div>
+      <section class="paper-section">
+        <div class="section-label">Dependencies</div>
+        <div id="deps"></div>
+      </section>
 
-  <button class="dark-toggle" id="dark-toggle">☽ dark</button>
+    </article>
+  </main>
+
+  <button id="dark-toggle">dark</button>
+
   <script src="app.js" type="module"></script>
 </body>
 </html>

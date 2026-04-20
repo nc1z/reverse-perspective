@@ -58,50 +58,32 @@ ${manifestContent}
 ${sourceStr}
 `.trim();
 
-  return `You are analysing a software repository. Study the context below and return a single JSON object — no preamble, no explanation, no markdown fences, just raw JSON.
-
-Approach this as a developer reconstructing the project from commit #1. For every layer ask:
-- What problem were they solving?
-- Why this abstraction and not another?
-- What was written first vs later?
-- What decisions look obvious now but were hard-won?
+  return `You are producing a one-page technical summary of a software repository. Be ruthlessly concise — every word must earn its place. Return a single JSON object, no preamble, no markdown fences, just raw JSON.
 
 ## Required JSON schema
 
-Return exactly this structure (all fields required):
-
 {
-  "mentalModel": [
-    "string — one core question the repo answers (3–5 items)"
+  "abstract": "string — 2-3 sentences MAX. What does this repo do and what is its core technical approach?",
+  "architecture": [
+    { "name": "string — component name", "role": "string — one sentence: what it does" }
   ],
-  "repoTree": [
-    { "path": "string — top-level file or folder name", "annotation": "string — one line on why it exists" }
+  "e2eFlow": "string — compact ASCII diagram tracing the primary entry point through the system. Use \\n for newlines. No prose, diagram only.",
+  "keyDecisions": [
+    "string — one concrete design/architecture decision, one sentence each"
   ],
-  "layers": [
-    {
-      "name": "string — subsystem name",
-      "content": "string — detailed markdown covering: purpose, key abstractions with code examples, key functions, design decisions, gotchas"
-    }
-  ],
-  "dependencies": "string — markdown: each dependency mapped to the layer it serves, why it was chosen",
-  "devScaffolding": "string — markdown: linting, CI, tests, pre-commit — why each exists at this project's scale",
-  "e2eFlow": "string — ASCII diagram tracing the primary entry point through every layer",
-  "commitStory": [
-    { "n": 1, "message": "string — git commit message", "description": "string — what was actually written in this commit" }
-  ],
-  "summaries": [
-    { "layer": "string — subsystem name", "oneLiner": "string — one sentence" }
+  "dependencies": [
+    { "name": "string — package name", "purpose": "string — one short phrase" }
   ]
 }
 
 ## Rules
 
-- Be specific to THIS repo. No generic advice.
-- layers should cover every major subsystem — aim for 4–8 entries.
-- commitStory should have ~10 entries in chronological build order.
-- content fields inside layers must be valid markdown (code blocks, headings, lists).
-- e2eFlow must preserve ASCII whitespace — use \\n for newlines inside the JSON string.
-- Return ONLY the JSON object. Any text outside the JSON will break the parser.
+- abstract: 2-3 sentences, no fluff, specific to this repo.
+- architecture: 4-6 components MAX. One sentence per component. Cover only the major layers.
+- e2eFlow: trace the single most important user-facing path. 10-15 lines MAX. ASCII art preferred.
+- keyDecisions: 3-5 items MAX. Concrete decisions only — not generic best practices.
+- dependencies: production dependencies only. Skip dev tools.
+- Return ONLY the JSON object.
 
 ## Repository context
 
