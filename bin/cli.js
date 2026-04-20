@@ -9,7 +9,8 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const RESULTS_DIR = join(__dirname, '..', 'tmp');
 
-import { fetchRepo } from '../src/github.js';
+import { fetchMetadata } from '../src/github.js';
+import { ingest } from '../src/ingest.js';
 import { analyze, availableAdapters } from '../src/analyzer.js';
 import { parseAnalysis } from '../src/parser.js';
 import { startServer } from '../src/server.js';
@@ -156,10 +157,14 @@ const repo  = match[2].replace(/\.git$/, '');
 const spinner = ora({ text: 'Starting…', color: 'cyan' }).start();
 
 try {
-  // Fetch
-  const repoContext = await fetchRepo(owner, repo, msg => { spinner.text = msg; });
-  const { metadata } = repoContext;
-  spinner.text = `Fetched ${metadata.full_name} — ${metadata.stargazers_count?.toLocaleString()} ★`;
+  // Metadata (for UI header)
+  spinner.text = 'Fetching repo metadata…';
+  const metadata = await fetchMetadata(owner, repo);
+  spinner.text = `${metadata.full_name} — ${metadata.stargazers_count?.toLocaleString()} ★`;
+
+  // Ingest (gitingest gets the full repo context)
+  spinner.text = 'Ingesting repository via gitingest…';
+  const digest = ingest(url, msg => { spinner.text = msg; });
 
   // Analyse
   const analyzeStart = Date.now();
@@ -169,24 +174,23 @@ try {
   }, 1000);
   spinner.text = `Analyzing via ${adapter.hint} (${model}) — 0s elapsed`;
 
-  let markdown;
+  let raw;
   try {
-    markdown = await analyze(repoContext, adapter, model, () => {});
+    raw = await analyze(digest, adapter, model, () => {});
   } finally {
     clearInterval(elapsedTimer);
   }
 
   // Parse
   spinner.text = 'Parsing analysis…';
-  const analysis = parseAnalysis(markdown, metadata);
-  analysis.rawTree = repoContext.tree;
+  const analysis = parseAnalysis(raw, metadata);
 
   // Save
   const hash = createHash('md5').update(url).digest('hex').slice(0, 8);
   const tmpDir = join(RESULTS_DIR, `reverse-perspective-${hash}`);
   mkdirSync(tmpDir, { recursive: true });
   writeFileSync(join(tmpDir, 'analysis.json'), JSON.stringify(analysis, null, 2), 'utf-8');
-  writeFileSync(join(tmpDir, 'analysis.md'), markdown, 'utf-8');
+  writeFileSync(join(tmpDir, 'analysis.md'), raw, 'utf-8');
 
   // Serve
   spinner.text = 'Starting local server…';
