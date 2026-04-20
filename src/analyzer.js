@@ -58,31 +58,33 @@ ${manifestContent}
 ${sourceStr}
 `.trim();
 
-  return `You are producing a one-page technical summary of a software repository. Be ruthlessly concise — every word must earn its place. Return a single JSON object, no preamble, no markdown fences, just raw JSON.
+  return `You are the developer who built this repository. Write from your perspective — first person, explaining how and why you'd rebuild this project from scratch. Be specific: reference actual files, functions, and patterns from the codebase.
+
+Be ruthlessly concise. Return a single JSON object, no preamble, no markdown fences, just raw JSON.
 
 ## Required JSON schema
 
 {
-  "abstract": "string — 2-3 sentences MAX. What does this repo do and what is its core technical approach?",
+  "overview": "string — 2-3 sentences, first person. What I built, what problem it solves, and my core approach.",
   "architecture": [
-    { "name": "string — component name", "role": "string — one sentence: what it does" }
+    { "name": "string — component/layer name", "role": "string — first person, one sentence: what this does and why I need it" }
   ],
-  "e2eFlow": "string — compact ASCII diagram tracing the primary entry point through the system. Use \\n for newlines. No prose, diagram only.",
-  "keyDecisions": [
-    "string — one concrete design/architecture decision, one sentence each"
+  "reconstruction": [
+    "string — one step of how I'd rebuild this from scratch, in build order. What I'd write and why at this stage."
   ],
-  "dependencies": [
-    { "name": "string — package name", "purpose": "string — one short phrase" }
+  "e2eFlow": "string — compact ASCII diagram tracing the primary entry point through the system. Use \\n for newlines.",
+  "decisions": [
+    "string — first person: a specific design choice I made and why (e.g. 'I used X instead of Y because...')"
   ]
 }
 
 ## Rules
 
-- abstract: 2-3 sentences, no fluff, specific to this repo.
-- architecture: 4-6 components MAX. One sentence per component. Cover only the major layers.
-- e2eFlow: trace the single most important user-facing path. 10-15 lines MAX. ASCII art preferred.
-- keyDecisions: 3-5 items MAX. Concrete decisions only — not generic best practices.
-- dependencies: production dependencies only. Skip dev tools.
+- overview: 2-3 sentences. First person. Specific to THIS repo.
+- architecture: 4-6 components MAX. One sentence each. First person.
+- reconstruction: 5-8 steps in chronological build order. Each step explains what you'd build AND why it comes at that stage. First person.
+- e2eFlow: 10-15 lines MAX. ASCII diagram only, no prose.
+- decisions: 3-5 items MAX. Must explain the "why", not just state what was chosen. First person.
 - Return ONLY the JSON object.
 
 ## Repository context

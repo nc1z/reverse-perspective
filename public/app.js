@@ -18,7 +18,7 @@ async function init() {
     return;
   }
 
-  const { repo, abstract, architecture, e2eFlow, keyDecisions, dependencies } = data;
+  const { repo, overview, architecture, reconstruction, e2eFlow, decisions } = data;
 
   // Header
   $('repo-name').textContent = repo.name || repo.fullName;
@@ -34,8 +34,8 @@ async function init() {
     </div>
     ${meta ? `<div class="stat-line" style="margin-top:4px">${esc(meta)}</div>` : ''}`;
 
-  // Abstract
-  $('abstract').textContent = abstract || '—';
+  // Overview
+  $('overview').textContent = overview || '\u2014';
 
   // Architecture
   $('architecture').innerHTML = (architecture ?? []).map((item, i) => `
@@ -48,22 +48,17 @@ async function init() {
     </div>`).join('');
 
   // E2E Flow
-  $('flow').textContent = e2eFlow || '—';
+  $('flow').textContent = e2eFlow || '\u2014';
 
-  // Key decisions
-  $('decisions').innerHTML = (keyDecisions ?? [])
+  // Reconstruction
+  $('reconstruction').innerHTML = (reconstruction ?? [])
+    .map(step => `<li>${esc(step)}</li>`).join('');
+
+  // Decisions
+  $('decisions').innerHTML = (decisions ?? [])
     .map(d => `<li>${esc(d)}</li>`).join('');
 
-  // Dependencies
-  $('deps').innerHTML = `<div class="deps-grid">${
-    (dependencies ?? []).map(d => `
-      <div class="dep-item">
-        <span class="dep-name">${esc(d.name)}</span>
-        <span class="dep-purpose">${esc(d.purpose)}</span>
-      </div>`).join('')
-  }</div>`;
-
-  // Show page
+  // Show
   $('loading').style.display = 'none';
   $('app').hidden = false;
 }

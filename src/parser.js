@@ -40,11 +40,11 @@ function extractJSON(text) {
 
 function normalise(j) {
   return {
-    abstract:      asString(j.abstract),
-    architecture:  asArchitecture(j.architecture),
-    e2eFlow:       asString(j.e2eFlow),
-    keyDecisions:  asStringArray(j.keyDecisions),
-    dependencies:  asDependencies(j.dependencies),
+    overview:       asString(j.overview),
+    architecture:   asArchitecture(j.architecture),
+    reconstruction: asStringArray(j.reconstruction),
+    e2eFlow:        asString(j.e2eFlow),
+    decisions:      asStringArray(j.decisions),
   };
 }
 
@@ -68,17 +68,6 @@ function asArchitecture(v) {
     .filter(item => item.name);
 }
 
-function asDependencies(v) {
-  if (!Array.isArray(v)) return [];
-  return v
-    .filter(item => item && typeof item === 'object')
-    .map(item => ({
-      name:    String(item.name    ?? ''),
-      purpose: String(item.purpose ?? ''),
-    }))
-    .filter(item => item.name);
-}
-
 function buildRepo(metadata) {
   return {
     name:        metadata.name,
@@ -88,7 +77,6 @@ function buildRepo(metadata) {
     stars:       metadata.stargazers_count  ?? 0,
     forks:       metadata.forks_count       ?? 0,
     language:    metadata.language          || '',
-    topics:      metadata.topics            || [],
     license:     metadata.license?.name     || '',
   };
 }
