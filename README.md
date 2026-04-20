@@ -1,25 +1,17 @@
 # reverse-perspective
 
-Understand any GitHub repository from the creator's perspective — not docs, not tutorials, but the actual engineering thought process behind it.
+Understand any GitHub repository from the creator's perspective.
 
-Point it at any public repo and get an animated, interactive breakdown served on localhost: mental model, folder tree, layer deep dives, dependency map, commit history, and more.
+Point it at any public repo and get a research paper-style breakdown served on localhost: overview, architecture, end-to-end flow, reconstruction steps, and design decisions — all written in first person as if you built it.
 
 ![demo](https://placeholder)
-
-## How it works
-
-1. Run the CLI and paste a GitHub URL
-2. Pick your AI provider and model
-3. It fetches the repo structure and key files via the GitHub API
-4. Sends everything to your chosen AI with a "developer reconstruction" prompt
-5. Parses the response into sections and saves to disk
-6. Serves an animated frontend on localhost and opens your browser
 
 ## Getting started
 
 **Prerequisites**
 
 - Node.js 18+
+- [uv](https://docs.astral.sh/uv/) (for gitingest)
 - At least one supported AI CLI installed and authenticated (see below)
 
 ```bash
@@ -34,7 +26,7 @@ npm install
 node bin/cli.js
 ```
 
-You'll be prompted for a GitHub URL, your AI provider, and the model to use.
+You'll be prompted for a GitHub URL, AI provider, and model.
 
 **Re-open a previous result**
 
@@ -42,17 +34,7 @@ You'll be prompted for a GitHub URL, your AI provider, and the model to use.
 node bin/cli.js serve
 ```
 
-Picks from all saved analyses — no need to re-run the AI.
-
-Or point directly at a saved folder:
-
-```bash
-node bin/cli.js serve ./tmp/reverse-perspective-abc123/
-```
-
 ## Supported AI providers
-
-The CLI detects which of these are on your PATH and shows only what's available:
 
 | Provider | CLI | Default model |
 |----------|-----|---------------|
@@ -60,20 +42,16 @@ The CLI detects which of these are on your PATH and shows only what's available:
 | [Codex](https://github.com/openai/codex) | `codex` | `gpt-5.4` |
 | [GitHub Copilot](https://githubnext.com/projects/copilot-cli) | `copilot` | `claude-sonnet-4-6` |
 
-The model prompt is pre-filled with the default — press Enter to accept or type any model ID supported by your provider.
-
 ## What you get
 
-The frontend is a dark-themed, animated long-scroll page with 8 sections:
+A single-page research paper with 5 sections:
 
-| # | Section | What it shows |
-|---|---------|---------------|
-| 1 | Mental model | The 3–5 core questions the codebase answers |
-| 2 | Repo tree | Every top-level item annotated with why it exists |
-| 3 | Layer deep dives | Per-subsystem breakdown with key abstractions and gotchas |
-| 4 | Dependency map | Every dependency mapped to the layer it serves |
-| 5 | Dev scaffolding | Linting, CI, tests — and why each exists |
-| 6 | End-to-end flow | One command traced through every layer as an ASCII diagram |
-| 7 | Commit story | The ~10 commits that would rebuild this from scratch |
-| 8 | Cheat sheet | One sentence per layer |
+| Section | What it shows |
+|---------|---------------|
+| Overview | 2–3 sentence summary, first person |
+| Architecture | Key components and what each does |
+| End-to-end flow | ASCII diagram of the primary request path |
+| How I'd rebuild this | Step-by-step reconstruction in build order |
+| Design decisions | Specific choices made and why |
 
+Export to PDF, DOCX, or Markdown via the toolbar.
